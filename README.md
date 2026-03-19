@@ -104,21 +104,95 @@ uni sync --init       # generate a pluginfile from your existing imports
 | `uni report <name>` | Show per-component translation report |
 | `uni publish [name]` | Publish translated plugins to a local registry repo clone |
 | `uni validate` | Validate pluginfile.yaml and report issues |
+| `uni registry list` | List configured registries and their status |
+| `uni registry add <name> <url>` | Add a registry to global config |
+| `uni registry remove <name>` | Remove a registry from global config |
+| `uni registry update [name]` | Pull latest changes for one or all registries |
+| `uni registry search <query>` | Search plugins across all configured registries |
 | `uni doctor` | Check environment, tool availability, and data directory |
 | `uni clean` | Remove cached source clones (`--all` or `--plugin <name>`) |
 | `uni completions <shell>` | Output shell completion script (bash, zsh, fish) |
 
 Common flags: `--only <tools>` (comma-separated), `--dry-run`, `--ref <ref>`, `--subdir <path>`, `--yes` / `-y`.
 
-## Using a registry
+## Using registries
 
-A registry is a git repo of pre-translated plugins. When configured in your pluginfile, uni-plugin copies from the registry instead of cloning and translating from source — faster and reproducible.
+Registries are git repos of pre-translated plugins. When configured, uni-plugin copies from the registry instead of cloning and translating from source — faster and reproducible.
+
+### Multiple registries with priority ordering
 
 ```yaml
-registry: https://github.com/your-org/uni-plugin-registry
+registries:
+  - name: company
+    url: https://github.com/acme-corp/ai-plugins-registry
+    priority: 1    # checked first
+
+  - name: community
+    url: https://github.com/george/uni-plugin-registry
+    priority: 2    # fallback
+
+plugins:
+  - name: code-review
+    source: gemini-cli-extensions/code-review
+    ref: main
+    # resolved from highest-priority registry that has it
+
+  - name: acme-standards
+    source: acme-corp/internal-plugins
+    ref: v2.0.0
+    registry: company   # pinned to a specific registry — skips the lookup chain
 ```
 
-Registry entries are pinned to commit SHAs, so you get deterministic installs. Use `--from-source` to bypass the registry and re-translate from the original repo.
+Resolution order: for each plugin, the priority chain is walked from lowest to highest `priority` value. The first registry that has the plugin wins. If no registry has it, the plugin is cloned and translated from source. Use `--from-source` to bypass all registries.
+
+### Global registry configuration
+
+Registries added via `uni registry add` are stored in `~/.uni-plugin/config.yaml` and apply to every pluginfile. Pluginfile registries take precedence on name collision.
+
+```bash
+uni registry add company https://github.com/acme-corp/ai-plugins-registry --priority 1
+uni registry add community https://github.com/george/uni-plugin-registry --priority 2
+uni registry list
+uni registry search code-review
+uni registry update          # pull all registries
+uni registry update company  # pull one registry
+```
+
+Registry clones are stored at `~/.uni-plugin/registries/{name}/`.
+
+## Private registries
+
+Private registries work with any git authentication method — uni-plugin relies entirely on git's credential system.
+
+### SSH (recommended for teams)
+
+```yaml
+registries:
+  - name: company
+    url: git@github.com:acme-corp/ai-plugins-registry.git
+    priority: 1
+```
+
+### HTTPS with credential helper
+
+```yaml
+registries:
+  - name: company
+    url: https://github.com/acme-corp/ai-plugins-registry
+    priority: 1
+```
+
+Ensure git credentials are configured: `gh auth login` or `git credential-manager`.
+
+### GitHub token
+
+```bash
+export GIT_ASKPASS=echo
+export GIT_USERNAME=x-access-token
+export GIT_PASSWORD=ghp_your_token_here
+```
+
+Registry entries are pinned to commit SHAs, so you get deterministic installs. Use `--from-source` to bypass all registries and re-translate from the original repo.
 
 ## Contributing
 

@@ -22,7 +22,9 @@ import {
   errorMessage,
   listSubdirs,
 } from "./utils.js";
-import { RegistryClient } from "./registry-client.js";
+import { RegistryManager } from "./registry-manager.js";
+import { mergeRegistries, resolvePlugin } from "./resolver.js";
+import { loadGlobalConfig } from "./config.js";
 import { warn, fail, ok, step, syncTable } from "./output.js";
 
 export interface SyncOptions {
@@ -33,7 +35,7 @@ export interface SyncOptions {
 }
 
 /**
- * Run the sync workflow: resolve registry, diff state, import/install plugins.
+ * Run the sync workflow: resolve registries, diff state, import/install plugins.
  */
 export async function sync(options: SyncOptions): Promise<SyncResult> {
   const { pluginfile, uniHome, fromSource, dryRun } = options;
@@ -41,19 +43,26 @@ export async function sync(options: SyncOptions): Promise<SyncResult> {
   const registry = loadRegistry(uniHome);
   const entries: SyncResultEntry[] = [];
 
-  // Resolve remote registry if configured
-  let registryClient: RegistryClient | null = null;
-  if (pluginfile.registry && !fromSource) {
-    console.log(`\nResolving registry: ${pluginfile.registry}`);
-    try {
-      registryClient = new RegistryClient(pluginfile.registry, uniHome);
-      if (!dryRun) {
-        registryClient.sync();
+  // Merge global config registries with pluginfile registries
+  const globalConfig = loadGlobalConfig(uniHome);
+  const registries = mergeRegistries(
+    globalConfig.registries,
+    pluginfile.registries ?? []
+  );
+
+  // Clone / pull all configured registries upfront
+  const manager = new RegistryManager(uniHome);
+  if (!fromSource && registries.length > 0) {
+    console.log(`\nSyncing ${registries.length} registr${registries.length !== 1 ? "ies" : "y"}...`);
+    for (const reg of registries) {
+      try {
+        if (!dryRun) manager.sync(reg);
+        ok(`${reg.name} (${reg.url})`);
+      } catch (err) {
+        warn(`Registry "${reg.name}" unavailable, falling back to source — ${errorMessage(err)}`);
+        // Remove from the list so resolvePlugin won't try it
+        registries.splice(registries.indexOf(reg), 1);
       }
-      ok("Registry synced");
-    } catch (err) {
-      warn(`Registry unavailable, falling back to source — ${errorMessage(err)}`);
-      registryClient = null;
     }
   }
 
@@ -63,15 +72,49 @@ export async function sync(options: SyncOptions): Promise<SyncResult> {
 
   for (const entry of pluginfile.plugins) {
     const targets = entry.targets ?? pluginfile.targets;
-    const result = syncPlugin(entry, {
-      targets,
-      distDir,
-      uniHome,
-      registry,
-      registryClient,
-      fromSource,
-      dryRun,
-    });
+
+    let source;
+    try {
+      source = fromSource
+        ? { type: "source" as const }
+        : resolvePlugin(entry, registries, manager);
+    } catch (err) {
+      fail(`${chalk.bold(entry.name)} — ${errorMessage(err)}`);
+      entries.push({
+        name: entry.name,
+        status: "failed",
+        targetResults: [],
+        error: errorMessage(err),
+      });
+      continue;
+    }
+
+    let result: SyncResultEntry;
+    if (source.type === "registry") {
+      result = syncFromRegistry(
+        entry,
+        targets,
+        distDir,
+        uniHome,
+        source.name,
+        manager,
+        dryRun
+      );
+    } else {
+      // Check up-to-date before source sync
+      const existing = registry[entry.name] as Record<string, unknown> | undefined;
+      if (!fromSource && existing && existing.ref === entry.ref) {
+        const sameSource = existing.source === entry.source;
+        const sameSubdir = (existing.subdir ?? undefined) === entry.subdir;
+        if (sameSource && sameSubdir) {
+          console.log(`  ${chalk.dim("○")} ${chalk.bold(entry.name)} — already up to date`);
+          entries.push({ name: entry.name, status: "up-to-date", targetResults: [] });
+          continue;
+        }
+      }
+      result = syncFromSource(entry, targets, distDir, uniHome, dryRun);
+    }
+
     entries.push(result);
   }
 
@@ -94,49 +137,13 @@ export async function sync(options: SyncOptions): Promise<SyncResult> {
   return { entries };
 }
 
-interface SyncPluginContext {
-  targets: ToolId[];
-  distDir: string;
-  uniHome: string;
-  registry: Record<string, unknown>;
-  registryClient: RegistryClient | null;
-  fromSource: boolean;
-  dryRun: boolean;
-}
-
-function syncPlugin(
-  entry: PluginfileEntry,
-  ctx: SyncPluginContext
-): SyncResultEntry {
-  const { targets, distDir, uniHome, registry, registryClient, fromSource, dryRun } =
-    ctx;
-
-  // Check if already up to date (skip when --from-source forces re-import)
-  const existing = registry[entry.name] as Record<string, unknown> | undefined;
-  if (!fromSource && existing && existing.ref === entry.ref) {
-    const sameSource = existing.source === entry.source;
-    const sameSubdir = (existing.subdir ?? undefined) === entry.subdir;
-    if (sameSource && sameSubdir) {
-      console.log(`  ${chalk.dim("○")} ${chalk.bold(entry.name)} — already up to date`);
-      return { name: entry.name, status: "up-to-date", targetResults: [] };
-    }
-  }
-
-  // Try registry first
-  if (registryClient && !fromSource && registryClient.hasPlugin(entry.name)) {
-    return syncFromRegistry(entry, targets, distDir, uniHome, registryClient, dryRun);
-  }
-
-  // Fall back to source
-  return syncFromSource(entry, targets, distDir, uniHome, dryRun);
-}
-
 function syncFromRegistry(
   entry: PluginfileEntry,
   targets: ToolId[],
   distDir: string,
   uniHome: string,
-  client: RegistryClient,
+  registryName: string,
+  manager: RegistryManager,
   dryRun: boolean
 ): SyncResultEntry {
   const targetResults: SyncResultEntry["targetResults"] = [];
@@ -144,26 +151,26 @@ function syncFromRegistry(
   try {
     if (dryRun) {
       console.log(
-        `  ${chalk.blue("●")} ${chalk.bold(entry.name)} ${chalk.dim("[registry]")} — would install`
+        `  ${chalk.blue("●")} ${chalk.bold(entry.name)} ${chalk.dim(`[${registryName}]`)} — would install`
       );
       for (const tool of targets) {
-        const has = client.hasTarget(entry.name, tool);
+        const has = manager.hasTarget(registryName, entry.name, tool);
         targetResults.push({
           tool,
           status: has ? "installed" : "skipped",
           reason: has ? undefined : "not available in registry",
         });
       }
-      return { name: entry.name, status: "installed", fetchedFrom: "registry", targetResults };
+      return { name: entry.name, status: "installed", fetchedFrom: registryName, targetResults };
     }
 
     console.log(
-      `  ${chalk.blue("●")} ${chalk.bold(entry.name)} ${chalk.dim("[registry]")}`
+      `  ${chalk.blue("●")} ${chalk.bold(entry.name)} ${chalk.dim(`[${registryName}]`)}`
     );
 
     for (const tool of targets) {
-      if (client.hasTarget(entry.name, tool)) {
-        client.copyToLocal(entry.name, tool, distDir);
+      if (manager.hasTarget(registryName, entry.name, tool)) {
+        manager.copyToLocal(registryName, entry.name, tool, distDir);
         targetResults.push({ tool, status: "installed" });
         console.log(`    ${tool}: ${chalk.green("✓")} copied from registry`);
       } else {
@@ -172,7 +179,7 @@ function syncFromRegistry(
       }
     }
 
-    const metadata = client.getMetadata(entry.name) ?? {};
+    const metadata = manager.getMetadata(registryName, entry.name) ?? {};
     updateRegistryEntry(uniHome, entry.name, {
       source: entry.source,
       subdir: entry.subdir,
@@ -181,16 +188,16 @@ function syncFromRegistry(
       sourceTool: metadata.sourceTool ?? "unknown",
       translatedAt: (metadata.translatedAt as string) ?? new Date().toISOString(),
       targets,
-      fetchedFrom: "registry",
+      fetchedFrom: registryName,
     });
 
-    return { name: entry.name, status: "installed", fetchedFrom: "registry", targetResults };
+    return { name: entry.name, status: "installed", fetchedFrom: registryName, targetResults };
   } catch (err) {
-    fail(`${chalk.bold(entry.name)} ${chalk.dim("[registry]")} — ${errorMessage(err)}`);
+    fail(`${chalk.bold(entry.name)} ${chalk.dim(`[${registryName}]`)} — ${errorMessage(err)}`);
     return {
       name: entry.name,
       status: "failed",
-      fetchedFrom: "registry",
+      fetchedFrom: registryName,
       targetResults,
       error: errorMessage(err),
     };
@@ -244,7 +251,6 @@ function syncFromSource(
     const pinnedRef = pinnedCommit(sourcesDir);
     step(`Translating...`);
 
-    // Translate (silent — sync has its own per-target output)
     const result = translate({
       pluginDir,
       outputDir: distDir,
@@ -273,7 +279,7 @@ function syncFromSource(
       }
     }
 
-    // Update registry
+    // Update local registry
     updateRegistryEntry(uniHome, result.plugin.name, {
       source: entry.source,
       subdir: entry.subdir,

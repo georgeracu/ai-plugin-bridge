@@ -1,7 +1,7 @@
 import { readFileSync, existsSync } from "node:fs";
 import { join } from "node:path";
 import { parse as parseYaml, YAMLParseError } from "yaml";
-import type { Pluginfile, PluginfileEntry, ToolId } from "./types.js";
+import type { Pluginfile, PluginfileEntry, RegistryConfig, ToolId } from "./types.js";
 
 const DEFAULT_TARGETS: ToolId[] = ["claude-code", "gemini-cli", "copilot-cli"];
 
@@ -75,7 +75,7 @@ export function validatePluginfile(
 function lintPluginfile(pf: Pluginfile): string[] {
   const warnings: string[] = [];
 
-  // Duplicate names
+  // Duplicate plugin names
   const names = pf.plugins.map((p) => p.name);
   const seen = new Set<string>();
   for (const name of names) {
@@ -84,6 +84,19 @@ function lintPluginfile(pf: Pluginfile): string[] {
     }
     seen.add(name);
   }
+
+  // Duplicate registry names
+  if (pf.registries) {
+    const regSeen = new Set<string>();
+    for (const r of pf.registries) {
+      if (regSeen.has(r.name)) {
+        warnings.push(`Duplicate registry name: "${r.name}"`);
+      }
+      regSeen.add(r.name);
+    }
+  }
+
+  const registryNames = new Set((pf.registries ?? []).map((r) => r.name));
 
   for (const entry of pf.plugins) {
     // Source should look like owner/repo or https://...
@@ -100,6 +113,13 @@ function lintPluginfile(pf: Pluginfile): string[] {
     if (isMutableRef(entry.ref)) {
       warnings.push(
         `Plugin "${entry.name}": ref "${entry.ref}" looks like a branch name — consider pinning to a tag or commit SHA for reproducibility`
+      );
+    }
+
+    // Per-plugin registry pin must reference a known registry
+    if (entry.registry && !registryNames.has(entry.registry)) {
+      warnings.push(
+        `Plugin "${entry.name}": registry "${entry.registry}" is not defined in the registries list`
       );
     }
   }
@@ -146,15 +166,40 @@ function validate(raw: unknown, filePath: string): Pluginfile {
         ref: typeof e.ref === "string" ? e.ref : "main",
         subdir: typeof e.subdir === "string" ? e.subdir : undefined,
         targets: validateTargets(e.targets),
+        registry: typeof e.registry === "string" ? e.registry : undefined,
       };
     }
   );
 
+  // Support both `registries` (new) and the legacy `registry` string field.
+  // If `registry` is a string, promote it to a single-entry registries list.
+  let registries = validateRegistries(obj.registries);
+  if (!registries && typeof obj.registry === "string" && obj.registry) {
+    registries = [{ name: "default", url: obj.registry, priority: 1 }];
+  }
+
   return {
-    registry: typeof obj.registry === "string" ? obj.registry : undefined,
+    registries: registries ?? undefined,
     targets,
     plugins,
   };
+}
+
+function validateRegistries(raw: unknown): RegistryConfig[] | undefined {
+  if (!Array.isArray(raw) || raw.length === 0) return undefined;
+  const result: RegistryConfig[] = [];
+  for (const item of raw) {
+    if (!item || typeof item !== "object") continue;
+    const r = item as Record<string, unknown>;
+    if (typeof r.name !== "string" || !r.name) continue;
+    if (typeof r.url !== "string" || !r.url) continue;
+    result.push({
+      name: r.name,
+      url: r.url,
+      priority: typeof r.priority === "number" ? r.priority : result.length + 1,
+    });
+  }
+  return result.length > 0 ? result : undefined;
 }
 
 function validateTargets(raw: unknown): ToolId[] | undefined {

@@ -135,6 +135,19 @@ export interface TranslationReport {
 }
 
 // ---------------------------------------------------------------------------
+// Registry configuration
+// ---------------------------------------------------------------------------
+
+export interface RegistryConfig {
+  /** Local identifier used in per-plugin `registry` pinning — must be unique */
+  name: string;
+  /** Git-cloneable URL (HTTPS or SSH) */
+  url: string;
+  /** Lookup priority — lower number checked first */
+  priority: number;
+}
+
+// ---------------------------------------------------------------------------
 // Pluginfile (declarative sync)
 // ---------------------------------------------------------------------------
 
@@ -145,11 +158,13 @@ export interface PluginfileEntry {
   subdir?: string;
   /** Per-plugin target override */
   targets?: ToolId[];
+  /** Pin this plugin to a specific registry by name — skips the priority chain */
+  registry?: string;
 }
 
 export interface Pluginfile {
-  /** URL of the registry repo (owner/repo or full URL) */
-  registry?: string;
+  /** Ordered list of registries to resolve plugins from */
+  registries?: RegistryConfig[];
   /** Default targets for all plugins */
   targets: ToolId[];
   /** Plugin entries */
@@ -161,8 +176,8 @@ export type SyncStatus = "installed" | "up-to-date" | "failed";
 export interface SyncResultEntry {
   name: string;
   status: SyncStatus;
-  /** Where the plugin was fetched from (absent when already up to date) */
-  fetchedFrom?: "registry" | "source";
+  /** Where the plugin was fetched from: "source" or a registry name */
+  fetchedFrom?: string;
   /** Per-target install status */
   targetResults: { tool: ToolId; status: "installed" | "skipped" | "failed"; reason?: string }[];
   error?: string;

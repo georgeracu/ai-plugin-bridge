@@ -30,6 +30,9 @@ import {
   pinnedCommit,
   errorMessage,
 } from "./utils.js";
+import { RegistryManager } from "./registry-manager.js";
+import { loadGlobalConfig, saveGlobalConfig } from "./config.js";
+import { mergeRegistries } from "./resolver.js";
 import { ALL_TOOLS, type ToolId } from "./types.js";
 import {
   setVerbose,
@@ -321,7 +324,7 @@ program
   .option(
     "--registry-dir <path>",
     "Path to local registry clone",
-    join(UNI_HOME, "registry")
+    join(UNI_HOME, "registries", "default")
   )
   .addHelpText(
     "after",
@@ -588,8 +591,10 @@ Examples:
       const { pluginfile, warnings } = validatePluginfile(filePath);
 
       ok(`Parsed ${pluginfile.plugins.length} plugin${pluginfile.plugins.length !== 1 ? "s" : ""}`);
-      if (pluginfile.registry) {
-        ok(`Registry: ${pluginfile.registry}`);
+      if (pluginfile.registries && pluginfile.registries.length > 0) {
+        ok(
+          `Registries: ${pluginfile.registries.map((r) => `${r.name} (priority ${r.priority})`).join(", ")}`
+        );
       }
       ok(`Default targets: ${pluginfile.targets.join(", ")}`);
 
@@ -618,7 +623,7 @@ program
   .option(
     "--registry <path>",
     "Path to local registry repo clone",
-    join(UNI_HOME, "registry")
+    join(UNI_HOME, "registries", "default")
   )
   .addHelpText(
     "after",
@@ -721,6 +726,44 @@ program
         log(chalk.dim(`  It will be created on first 'uni import' or 'uni sync'.`));
       }
       blank();
+
+      // Registries
+      const globalConfig = loadGlobalConfig(UNI_HOME);
+      let pfRegistries: typeof globalConfig.registries = [];
+      const pfPath2 = join(process.cwd(), "pluginfile.yaml");
+      if (existsSync(pfPath2)) {
+        try {
+          const { pluginfile: pf } = validatePluginfile(pfPath2);
+          pfRegistries = pf.registries ?? [];
+        } catch {
+          // Ignore — reported in the Pluginfile section below
+        }
+      }
+      const allRegistries = mergeRegistries(globalConfig.registries, pfRegistries);
+      if (allRegistries.length > 0) {
+        blank();
+        log(chalk.bold("Registries:"));
+        const manager = new RegistryManager(UNI_HOME);
+        for (const reg of allRegistries) {
+          const regDir = manager.registryDir(reg.name);
+          if (existsSync(join(regDir, ".git"))) {
+            try {
+              const count = manager.pluginCount(reg.name);
+              const updated = manager.lastUpdated(reg.name);
+              const ago = updated ? relativeTime(updated) : "unknown";
+              ok(
+                `${chalk.bold(reg.name)} — ${count} plugin${count !== 1 ? "s" : ""} (last updated: ${ago})`
+              );
+            } catch {
+              ok(`${chalk.bold(reg.name)} — cloned`);
+            }
+          } else {
+            fail(
+              `${chalk.bold(reg.name)} — not yet cloned (run 'uni sync' or 'uni registry update ${reg.name}')`
+            );
+          }
+        }
+      }
 
       // Pluginfile
       log(chalk.bold("Pluginfile:"));
@@ -887,6 +930,7 @@ Examples:
         "sync",
         "validate",
         "publish",
+        "registry",
         "doctor",
         "clean",
         "completions",
@@ -1011,6 +1055,16 @@ function formatSize(bytes: number): string {
   return `${(bytes / 1024 / 1024).toFixed(1)} MB`;
 }
 
+function relativeTime(isoDate: string): string {
+  const diff = Date.now() - new Date(isoDate).getTime();
+  const mins = Math.floor(diff / 60_000);
+  if (mins < 60) return `${mins} minute${mins !== 1 ? "s" : ""} ago`;
+  const hours = Math.floor(mins / 60);
+  if (hours < 24) return `${hours} hour${hours !== 1 ? "s" : ""} ago`;
+  const days = Math.floor(hours / 24);
+  return `${days} day${days !== 1 ? "s" : ""} ago`;
+}
+
 function generatePluginfile(): void {
   const outPath = join(process.cwd(), "pluginfile.yaml");
   if (existsSync(outPath)) {
@@ -1022,7 +1076,7 @@ function generatePluginfile(): void {
   const entries = Object.entries(registry);
 
   let yaml = `# uni-plugin pluginfile — run "uni sync" to install all plugins\n\n`;
-  yaml += `# registry: owner/repo  # optional: pre-translated plugin registry\n\n`;
+  yaml += `# registries:\n#   - name: community\n#     url: https://github.com/owner/uni-plugin-registry\n#     priority: 1\n\n`;
   yaml += `targets:\n  - claude-code\n  - gemini-cli\n  - copilot-cli\n\nplugins:\n`;
 
   if (entries.length === 0) {
@@ -1052,6 +1106,239 @@ function generatePluginfile(): void {
 }
 
 // ---------------------------------------------------------------------------
+// uni registry list | add | remove | update | search
+// ---------------------------------------------------------------------------
+
+const registryCmd = program
+  .command("registry")
+  .description("Manage plugin registries");
+
+registryCmd
+  .command("list")
+  .description("List configured registries and their status")
+  .action(
+    action(() => {
+      const globalConfig = loadGlobalConfig(UNI_HOME);
+      let pfRegistries: typeof globalConfig.registries = [];
+      const pfPath = join(process.cwd(), "pluginfile.yaml");
+      if (existsSync(pfPath)) {
+        try {
+          const { pluginfile: pf } = validatePluginfile(pfPath);
+          pfRegistries = pf.registries ?? [];
+        } catch {
+          /* ignore */
+        }
+      }
+      const registries = mergeRegistries(globalConfig.registries, pfRegistries);
+
+      if (registries.length === 0) {
+        header("Configured registries");
+        blank();
+        log("No registries configured.");
+        log(chalk.dim("Use 'uni registry add <name> <url>' or add a 'registries' section to pluginfile.yaml."));
+        blank();
+        return;
+      }
+
+      header("Configured registries");
+      blank();
+      const manager = new RegistryManager(UNI_HOME);
+      for (const reg of registries) {
+        const regDir = manager.registryDir(reg.name);
+        const cloned = existsSync(join(regDir, ".git"));
+        const source = globalConfig.registries.some((r) => r.name === reg.name)
+          ? "global"
+          : "pluginfile";
+        if (cloned) {
+          try {
+            const count = manager.pluginCount(reg.name);
+            const updated = manager.lastUpdated(reg.name);
+            const ago = updated ? relativeTime(updated) : "unknown";
+            ok(
+              `${chalk.bold(reg.name)} ${chalk.dim(`(priority ${reg.priority}, ${source})`)} — ${count} plugin${count !== 1 ? "s" : ""}, updated ${ago}`
+            );
+            log(chalk.dim(`  ${reg.url}`));
+          } catch {
+            ok(`${chalk.bold(reg.name)} ${chalk.dim(`(priority ${reg.priority}, ${source})`)} — cloned`);
+            log(chalk.dim(`  ${reg.url}`));
+          }
+        } else {
+          fail(
+            `${chalk.bold(reg.name)} ${chalk.dim(`(priority ${reg.priority}, ${source})`)} — not yet cloned`
+          );
+          log(chalk.dim(`  ${reg.url}`));
+        }
+      }
+      blank();
+    })
+  );
+
+registryCmd
+  .command("add")
+  .description("Add a registry to global config (~/.uni-plugin/config.yaml)")
+  .argument("<name>", "Registry name (used in per-plugin registry pinning)")
+  .argument("<url>", "Git-cloneable URL (HTTPS or SSH)")
+  .option("--priority <n>", "Lookup priority — lower number checked first", "999")
+  .addHelpText(
+    "after",
+    `
+Examples:
+  uni registry add company https://github.com/acme/plugins --priority 1
+  uni registry add community git@github.com:george/uni-plugin-registry.git
+`
+  )
+  .action(
+    action((name: string, url: string, opts) => {
+      const priority = parseInt(opts.priority, 10);
+      const globalConfig = loadGlobalConfig(UNI_HOME);
+
+      const existing = globalConfig.registries.findIndex((r) => r.name === name);
+      if (existing !== -1) {
+        globalConfig.registries[existing] = { name, url, priority };
+        saveGlobalConfig(UNI_HOME, globalConfig);
+        ok(`Updated registry "${name}" in global config`);
+      } else {
+        globalConfig.registries.push({ name, url, priority });
+        saveGlobalConfig(UNI_HOME, globalConfig);
+        ok(`Added registry "${name}" to global config`);
+      }
+      log(chalk.dim("Run 'uni registry update' to clone it, or 'uni sync' to use it."));
+      blank();
+    })
+  );
+
+registryCmd
+  .command("remove")
+  .description("Remove a registry from global config")
+  .argument("<name>", "Registry name")
+  .action(
+    action(async (name: string) => {
+      const globalConfig = loadGlobalConfig(UNI_HOME);
+      const idx = globalConfig.registries.findIndex((r) => r.name === name);
+      if (idx === -1) {
+        fatal(`Registry "${name}" not found in global config. Run 'uni registry list' to see configured registries.`);
+      }
+
+      const proceed = await confirm(
+        `Remove registry "${name}" from global config?`,
+        false
+      );
+      if (!proceed) {
+        log("Aborted.");
+        return;
+      }
+
+      globalConfig.registries.splice(idx, 1);
+      saveGlobalConfig(UNI_HOME, globalConfig);
+      ok(`Removed registry "${name}" from global config`);
+      log(chalk.dim("The local clone under ~/.uni-plugin/registries/ is preserved. Run 'uni clean' to remove it."));
+      blank();
+    })
+  );
+
+registryCmd
+  .command("update")
+  .description("Pull latest changes for one or all registries")
+  .argument("[name]", "Registry name (omit to update all configured registries)")
+  .action(
+    action((name: string | undefined) => {
+      const globalConfig = loadGlobalConfig(UNI_HOME);
+      let pfRegistries: typeof globalConfig.registries = [];
+      const pfPath = join(process.cwd(), "pluginfile.yaml");
+      if (existsSync(pfPath)) {
+        try {
+          const { pluginfile: pf } = validatePluginfile(pfPath);
+          pfRegistries = pf.registries ?? [];
+        } catch {
+          /* ignore */
+        }
+      }
+      const registries = mergeRegistries(globalConfig.registries, pfRegistries);
+
+      const targets = name
+        ? registries.filter((r) => r.name === name)
+        : registries;
+
+      if (targets.length === 0) {
+        fatal(
+          name
+            ? `Registry "${name}" not found. Run 'uni registry list' to see configured registries.`
+            : "No registries configured. Run 'uni registry add <name> <url>'."
+        );
+      }
+
+      const manager = new RegistryManager(UNI_HOME);
+      for (const reg of targets) {
+        step(`Updating ${chalk.bold(reg.name)}...`);
+        try {
+          manager.sync(reg);
+          const count = manager.pluginCount(reg.name);
+          ok(`${chalk.bold(reg.name)} — ${count} plugin${count !== 1 ? "s" : ""}`);
+        } catch (err) {
+          fail(`${chalk.bold(reg.name)} — ${errorMessage(err)}`);
+        }
+      }
+      blank();
+    })
+  );
+
+registryCmd
+  .command("search")
+  .description("Search plugins across all configured registries")
+  .argument("<query>", "Search query (matches plugin names and descriptions)")
+  .addHelpText(
+    "after",
+    `
+Examples:
+  uni registry search code-review
+  uni registry search mcp
+`
+  )
+  .action(
+    action((query: string) => {
+      const globalConfig = loadGlobalConfig(UNI_HOME);
+      let pfRegistries: typeof globalConfig.registries = [];
+      const pfPath = join(process.cwd(), "pluginfile.yaml");
+      if (existsSync(pfPath)) {
+        try {
+          const { pluginfile: pf } = validatePluginfile(pfPath);
+          pfRegistries = pf.registries ?? [];
+        } catch {
+          /* ignore */
+        }
+      }
+      const registries = mergeRegistries(globalConfig.registries, pfRegistries);
+
+      if (registries.length === 0) {
+        log("No registries configured. Run 'uni registry add <name> <url>'.");
+        return;
+      }
+
+      header(`Search results for "${query}"`);
+      blank();
+
+      const manager = new RegistryManager(UNI_HOME);
+      const names = registries.map((r) => r.name);
+      const results = manager.search(names, query);
+
+      if (results.length === 0) {
+        log(`No plugins found matching "${query}".`);
+      } else {
+        for (const { registryName, name, entry } of results) {
+          log(
+            `${chalk.bold(name)} ${chalk.dim(`(${registryName})`)}`
+          );
+          if (entry.description) {
+            log(chalk.dim(`  ${entry.description}`));
+          }
+          log(chalk.dim(`  targets: ${entry.targets.join(", ")}`));
+        }
+      }
+      blank();
+    })
+  );
+
+// ---------------------------------------------------------------------------
 // Shell completion scripts
 // ---------------------------------------------------------------------------
 
@@ -1064,6 +1351,7 @@ const COMPLETION_DEFS: Record<string, string> = {
   sync: "Sync plugins from pluginfile.yaml",
   validate: "Validate pluginfile.yaml",
   publish: "Publish translated plugins to a registry",
+  registry: "Manage plugin registries",
   doctor: "Check environment and tool availability",
   clean: "Remove cached source clones",
   completions: "Output shell completion script",

@@ -99,6 +99,7 @@ export function separator(): void {
 // ---------------------------------------------------------------------------
 
 const COL_WIDTH = 15;
+const SOURCE_COL_WIDTH = 12;
 
 function statusCell(entry: SyncResultEntry, tool: ToolId): string {
   if (entry.status === "up-to-date") {
@@ -119,6 +120,12 @@ function statusCell(entry: SyncResultEntry, tool: ToolId): string {
   }
 }
 
+function sourceCell(entry: SyncResultEntry): string {
+  if (!entry.fetchedFrom) return chalk.dim("—");
+  if (entry.fetchedFrom === "source") return chalk.dim("source");
+  return chalk.cyan(entry.fetchedFrom);
+}
+
 function pad(s: string, width: number): string {
   // Pad accounting for ANSI escape codes (chalk adds them)
   const visLen = s.replace(/\x1b\[[0-9;]*m/g, "").length;
@@ -130,19 +137,30 @@ export function syncTable(entries: SyncResultEntry[]): void {
 
   const nameWidth =
     Math.max(10, ...entries.map((e) => e.name.length)) + 2;
+  const srcWidth =
+    Math.max(
+      SOURCE_COL_WIDTH,
+      ...entries.map((e) => (e.fetchedFrom ?? "—").length)
+    ) + 2;
 
   // Header row
   console.log(
     "  " +
       pad(chalk.bold("Plugin"), nameWidth) +
+      pad(chalk.bold("Source"), srcWidth) +
       ALL_TOOLS.map((t) => pad(chalk.bold(t), COL_WIDTH)).join("  ")
   );
-  console.log(chalk.dim("  " + "─".repeat(nameWidth + ALL_TOOLS.length * (COL_WIDTH + 2))));
+  console.log(
+    chalk.dim(
+      "  " + "─".repeat(nameWidth + srcWidth + ALL_TOOLS.length * (COL_WIDTH + 2))
+    )
+  );
 
   for (const entry of entries) {
     console.log(
       "  " +
         pad(entry.name, nameWidth) +
+        pad(sourceCell(entry), srcWidth) +
         ALL_TOOLS.map((t) => pad(statusCell(entry, t), COL_WIDTH)).join("  ")
     );
   }
