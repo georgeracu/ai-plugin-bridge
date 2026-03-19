@@ -3,6 +3,7 @@ import { existsSync, mkdirSync, cpSync, readFileSync } from "node:fs";
 import { execSync } from "node:child_process";
 import type { RegistryIndex, ToolId } from "./types.js";
 import { loadRegistryIndex } from "./registry-index.js";
+import { normalizeGitUrl } from "./utils.js";
 
 /**
  * Manages interaction with a remote plugin registry repo.
@@ -13,10 +14,7 @@ export class RegistryClient {
   private index: RegistryIndex | null = null;
 
   constructor(registryUrl: string, uniHome: string) {
-    // Normalise to git URL
-    this.registryUrl = registryUrl.startsWith("https://")
-      ? registryUrl
-      : `https://github.com/${registryUrl}.git`;
+    this.registryUrl = normalizeGitUrl(registryUrl);
     this.registryDir = join(uniHome, "registry");
   }
 
@@ -51,13 +49,6 @@ export class RegistryClient {
    */
   hasTarget(name: string, tool: ToolId): boolean {
     return this.getIndex().plugins[name]?.targets.includes(tool) ?? false;
-  }
-
-  /**
-   * Return the pinned ref for a plugin from the registry index, or null if not found.
-   */
-  getRef(name: string): string | null {
-    return this.getIndex().plugins[name]?.ref ?? null;
   }
 
   /**

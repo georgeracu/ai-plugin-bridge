@@ -3,13 +3,18 @@ import { existsSync, readdirSync, statSync } from "node:fs";
 import type {
   UniversalPlugin,
   PluginSource,
-  McpServerConfig,
   Skill,
   Agent,
   HookConfig,
   ExtraFile,
 } from "../types.js";
-import { readTextFile, readJsonFile, parseFrontmatter } from "../utils.js";
+import {
+  readTextFile,
+  readJsonFile,
+  parseFrontmatter,
+  parseMcpJsonFile,
+  collectExtraDir,
+} from "../utils.js";
 
 export function parseCopilotCliPlugin(
   pluginDir: string,
@@ -32,7 +37,7 @@ export function parseCopilotCliPlugin(
   const description = (manifest?.description as string) ?? "";
 
   // MCP servers from .mcp.json
-  const mcpServers = parseMcpJson(pluginDir);
+  const mcpServers = parseMcpJsonFile(pluginDir);
 
   // Skills — manifest can point to one or more directories
   const skills = parseSkills(pluginDir, manifest);
@@ -70,27 +75,6 @@ export function parseCopilotCliPlugin(
     contextFile,
     extraFiles,
   };
-}
-
-function parseMcpJson(pluginDir: string): McpServerConfig[] {
-  const raw = readJsonFile(join(pluginDir, ".mcp.json")) as Record<
-    string,
-    unknown
-  > | null;
-  if (!raw?.mcpServers) return [];
-
-  const servers = raw.mcpServers as Record<
-    string,
-    { command: string; args?: string[]; cwd?: string; env?: Record<string, string> }
-  >;
-
-  return Object.entries(servers).map(([name, config]) => ({
-    name,
-    command: config.command,
-    args: config.args ?? [],
-    cwd: config.cwd,
-    env: config.env,
-  }));
 }
 
 function parseSkills(
@@ -193,23 +177,6 @@ function parseExtraFiles(pluginDir: string): ExtraFile[] {
     }
   }
   return extras;
-}
-
-function collectExtraDir(
-  dir: string,
-  baseDir: string,
-  extras: ExtraFile[]
-): void {
-  for (const entry of readdirSync(dir)) {
-    const full = join(dir, entry);
-    const rel = full.substring(baseDir.length + 1);
-    if (statSync(full).isDirectory()) {
-      collectExtraDir(full, baseDir, extras);
-    } else {
-      const content = readTextFile(full);
-      extras.push({ relativePath: rel, content, binary: content === null });
-    }
-  }
 }
 
 function normalizeStringOrArray(

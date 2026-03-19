@@ -1,6 +1,5 @@
 import { join } from "node:path";
 import { mkdirSync } from "node:fs";
-import chalk from "chalk";
 import type {
   ToolId,
   UniversalPlugin,
@@ -19,6 +18,8 @@ import {
   generateCopilotCliPlugin,
 } from "./generators/index.js";
 
+export type ProgressFn = (msg: string, type: "step" | "ok" | "warn") => void;
+
 export interface TranslateOptions {
   /** Path to the locally cloned plugin directory */
   pluginDir: string;
@@ -28,6 +29,11 @@ export interface TranslateOptions {
   source: PluginSource;
   /** Which tools to generate for (defaults to all three) */
   targets?: ToolId[];
+  /**
+   * Optional progress callback. When omitted, translate() runs silently.
+   * The caller decides how to render progress messages.
+   */
+  onProgress?: ProgressFn;
 }
 
 export interface TranslateResult {
@@ -39,36 +45,30 @@ export interface TranslateResult {
  * Translate a plugin from its native format to all target formats.
  */
 export function translate(options: TranslateOptions): TranslateResult {
-  const { pluginDir, outputDir, source } = options;
+  const { pluginDir, outputDir, source, onProgress } = options;
   const targets: ToolId[] = options.targets ?? [
     "claude-code",
     "gemini-cli",
     "copilot-cli",
   ];
 
+  const emit = onProgress ?? (() => {});
+
   // Step 1: Detect source tool
   const detection = detectSourceTool(pluginDir);
   if (!detection) {
     throw new Error(
-      `Could not detect plugin format in ${pluginDir}. ` +
+      `No plugin manifest detected in ${pluginDir}.\n` +
         `Expected one of: .claude-plugin/plugin.json, gemini-extension.json, plugin.json`
     );
   }
 
-  console.log(
-    `  Detected: ${detection.tool} (${detection.confidence}) via ${detection.manifestPath}`
-  );
+  emit(`Detected: ${detection.tool} extension`, "step");
 
   // Step 2: Parse into universal model
   const plugin = parse(detection.tool, pluginDir, source);
 
-  console.log(`  Parsed: ${plugin.name} v${plugin.version}`);
-  console.log(
-    `  Components: ${plugin.mcpServers.length} MCP servers, ` +
-      `${plugin.skills.length} skills, ${plugin.agents.length} agents, ` +
-      `${plugin.commands.length} commands, ${plugin.hooks.length} hooks` +
-      `${plugin.contextFile ? ", context file" : ""}`
-  );
+  emit(`Parsed: ${componentSummary(plugin)}`, "step");
 
   // Step 3: Generate for each target
   const reports = new Map<ToolId, TranslationReport>();
@@ -77,35 +77,54 @@ export function translate(options: TranslateOptions): TranslateResult {
     const targetDir = join(outputDir, target, plugin.name);
     mkdirSync(targetDir, { recursive: true });
 
-    console.log(`  Generating: ${target} → ${targetDir}`);
+    emit(`Generating ${target}...`, "step");
 
     const report = generate(target, plugin, targetDir);
     reports.set(target, report);
 
-    const translated = report.components.filter(
-      (c) => c.status === "translated"
-    ).length;
-    const skipped = report.components.filter(
-      (c) => c.status === "skipped"
-    ).length;
-    const partial = report.components.filter(
-      (c) => c.status === "partial"
-    ).length;
+    const summary = reportSummary(report);
+    emit(`${target}: ${summary}`, report.partial ? "warn" : "ok");
 
-    const parts: string[] = [];
-    if (translated > 0) parts.push(chalk.green(`${translated} translated`));
-    if (partial > 0) parts.push(chalk.yellow(`${partial} partial`));
-    if (skipped > 0) parts.push(chalk.red(`${skipped} skipped`));
-    console.log(`    Result: ${parts.join(", ")}`);
-
-    if (report.warnings.length > 0) {
-      for (const w of report.warnings) {
-        console.log(`    ${chalk.yellow("⚠")} ${w}`);
-      }
+    for (const w of report.warnings) {
+      emit(w, "warn");
     }
   }
 
   return { plugin, reports };
+}
+
+function componentSummary(plugin: UniversalPlugin): string {
+  const parts: string[] = [];
+  if (plugin.mcpServers.length > 0)
+    parts.push(`${plugin.mcpServers.length} MCP server${plugin.mcpServers.length > 1 ? "s" : ""}`);
+  if (plugin.skills.length > 0)
+    parts.push(`${plugin.skills.length} skill${plugin.skills.length > 1 ? "s" : ""}`);
+  if (plugin.agents.length > 0)
+    parts.push(`${plugin.agents.length} agent${plugin.agents.length > 1 ? "s" : ""}`);
+  if (plugin.commands.length > 0)
+    parts.push(`${plugin.commands.length} command${plugin.commands.length > 1 ? "s" : ""}`);
+  if (plugin.hooks.length > 0)
+    parts.push(`${plugin.hooks.length} hook${plugin.hooks.length > 1 ? "s" : ""}`);
+  if (plugin.contextFile) parts.push("context file");
+  return parts.join(", ") || "no components";
+}
+
+function reportSummary(report: TranslationReport): string {
+  const translated = report.components.filter(
+    (c) => c.status === "translated"
+  ).length;
+  const partialCount = report.components.filter(
+    (c) => c.status === "partial"
+  ).length;
+  const skipped = report.components.filter(
+    (c) => c.status === "skipped"
+  ).length;
+
+  const parts: string[] = [];
+  parts.push(`${translated + partialCount} component${translated + partialCount !== 1 ? "s" : ""}`);
+  if (partialCount > 0) parts.push(`${partialCount} partial`);
+  if (skipped > 0) parts.push(`${skipped} skipped`);
+  return parts.join(", ");
 }
 
 function parse(

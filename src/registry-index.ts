@@ -1,6 +1,6 @@
 import { join } from "node:path";
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
-import type { RegistryIndex, RegistryPluginEntry } from "./types.js";
+import type { RegistryIndex } from "./types.js";
 
 function indexPath(registryDir: string): string {
   return join(registryDir, "registry-index.json");
@@ -20,12 +20,3 @@ export function saveRegistryIndex(registryDir: string, index: RegistryIndex): vo
   writeFileSync(indexPath(registryDir), JSON.stringify(index, null, 2));
 }
 
-export function updateRegistryIndexEntry(
-  registryDir: string,
-  name: string,
-  entry: RegistryPluginEntry
-): void {
-  const index = loadRegistryIndex(registryDir);
-  index.plugins[name] = entry;
-  saveRegistryIndex(registryDir, index);
-}

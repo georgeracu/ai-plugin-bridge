@@ -9,7 +9,13 @@ import type {
   ContextFile,
   ExtraFile,
 } from "../types.js";
-import { readTextFile, readJsonFile, parseFrontmatter } from "../utils.js";
+import {
+  readTextFile,
+  readJsonFile,
+  parseFrontmatter,
+  collectCommandFiles,
+  collectExtraDir,
+} from "../utils.js";
 
 export function parseGeminiCliExtension(
   pluginDir: string,
@@ -108,29 +114,8 @@ function parseCommands(pluginDir: string): Command[] {
   if (!existsSync(commandsDir)) return [];
 
   const commands: Command[] = [];
-  collectCommands(commandsDir, commandsDir, commands);
+  collectCommandFiles(commandsDir, commandsDir, commands);
   return commands;
-}
-
-function collectCommands(
-  dir: string,
-  baseDir: string,
-  commands: Command[]
-): void {
-  for (const entry of readdirSync(dir)) {
-    const full = join(dir, entry);
-    if (statSync(full).isDirectory()) {
-      collectCommands(full, baseDir, commands);
-      continue;
-    }
-    if (entry.endsWith(".toml") || entry.endsWith(".md")) {
-      const content = readTextFile(full);
-      if (!content) continue;
-      const name = entry.replace(/\.(toml|md)$/, "");
-      const relPath = full.substring(baseDir.length + 1);
-      commands.push({ name, path: `commands/${relPath}`, content });
-    }
-  }
 }
 
 function parseContextFile(
@@ -173,19 +158,3 @@ function parseExtraFiles(
   return extras;
 }
 
-function collectExtraDir(
-  dir: string,
-  baseDir: string,
-  extras: ExtraFile[]
-): void {
-  for (const entry of readdirSync(dir)) {
-    const full = join(dir, entry);
-    const rel = full.substring(baseDir.length + 1);
-    if (statSync(full).isDirectory()) {
-      collectExtraDir(full, baseDir, extras);
-    } else {
-      const content = readTextFile(full);
-      extras.push({ relativePath: rel, content, binary: content === null });
-    }
-  }
-}

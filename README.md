@@ -100,11 +100,15 @@ uni sync --init       # generate a pluginfile from your existing imports
 | `uni sync` | Sync plugins defined in pluginfile.yaml |
 | `uni install <name>` | Install a translated plugin into target CLI tools |
 | `uni remove <name>` | Uninstall a plugin and delete translated files |
-| `uni list` | List imported plugins, or plugins available in the registry |
+| `uni list` | List imported plugins, or plugins available in the registry (`--registry`) |
 | `uni report <name>` | Show per-component translation report |
 | `uni publish [name]` | Publish translated plugins to a local registry repo clone |
+| `uni validate` | Validate pluginfile.yaml and report issues |
+| `uni doctor` | Check environment, tool availability, and data directory |
+| `uni clean` | Remove cached source clones (`--all` or `--plugin <name>`) |
+| `uni completions <shell>` | Output shell completion script (bash, zsh, fish) |
 
-Common flags: `--only <tools>` (comma-separated), `--dry-run`, `--ref <ref>`, `--subdir <path>`.
+Common flags: `--only <tools>` (comma-separated), `--dry-run`, `--ref <ref>`, `--subdir <path>`, `--yes` / `-y`.
 
 ## Using a registry
 

@@ -3,7 +3,6 @@ import { existsSync, readdirSync, statSync } from "node:fs";
 import type {
   UniversalPlugin,
   PluginSource,
-  McpServerConfig,
   Skill,
   Agent,
   Command,
@@ -11,7 +10,14 @@ import type {
   ContextFile,
   ExtraFile,
 } from "../types.js";
-import { readTextFile, readJsonFile, parseFrontmatter } from "../utils.js";
+import {
+  readTextFile,
+  readJsonFile,
+  parseFrontmatter,
+  parseMcpJsonFile,
+  collectCommandFiles,
+  collectExtraDir,
+} from "../utils.js";
 
 export function parseClaudeCodePlugin(
   pluginDir: string,
@@ -27,7 +33,7 @@ export function parseClaudeCodePlugin(
   const description = (manifest?.description as string) ?? "";
 
   // MCP servers from .mcp.json
-  const mcpServers = parseMcpJson(pluginDir);
+  const mcpServers = parseMcpJsonFile(pluginDir);
 
   // Skills
   const skills = parseSkills(pluginDir);
@@ -61,27 +67,6 @@ export function parseClaudeCodePlugin(
     contextFile,
     extraFiles,
   };
-}
-
-function parseMcpJson(pluginDir: string): McpServerConfig[] {
-  const raw = readJsonFile(join(pluginDir, ".mcp.json")) as Record<
-    string,
-    unknown
-  > | null;
-  if (!raw?.mcpServers) return [];
-
-  const servers = raw.mcpServers as Record<
-    string,
-    { command: string; args?: string[]; cwd?: string; env?: Record<string, string> }
-  >;
-
-  return Object.entries(servers).map(([name, config]) => ({
-    name,
-    command: config.command,
-    args: config.args ?? [],
-    cwd: config.cwd,
-    env: config.env,
-  }));
 }
 
 function parseSkills(pluginDir: string): Skill[] {
@@ -127,29 +112,8 @@ function parseCommands(pluginDir: string): Command[] {
   if (!existsSync(commandsDir)) return [];
 
   const commands: Command[] = [];
-  collectCommands(commandsDir, commandsDir, commands);
+  collectCommandFiles(commandsDir, commandsDir, commands);
   return commands;
-}
-
-function collectCommands(
-  dir: string,
-  baseDir: string,
-  commands: Command[]
-): void {
-  for (const entry of readdirSync(dir)) {
-    const full = join(dir, entry);
-    if (statSync(full).isDirectory()) {
-      collectCommands(full, baseDir, commands);
-      continue;
-    }
-    if (entry.endsWith(".toml") || entry.endsWith(".md")) {
-      const content = readTextFile(full);
-      if (!content) continue;
-      const name = entry.replace(/\.(toml|md)$/, "");
-      const relPath = full.substring(baseDir.length + 1);
-      commands.push({ name, path: `commands/${relPath}`, content });
-    }
-  }
 }
 
 function parseHooks(pluginDir: string): HookConfig[] {
@@ -219,19 +183,3 @@ function parseExtraFiles(pluginDir: string): ExtraFile[] {
   return extras;
 }
 
-function collectExtraDir(
-  dir: string,
-  baseDir: string,
-  extras: ExtraFile[]
-): void {
-  for (const entry of readdirSync(dir)) {
-    const full = join(dir, entry);
-    const rel = full.substring(baseDir.length + 1);
-    if (statSync(full).isDirectory()) {
-      collectExtraDir(full, baseDir, extras);
-    } else {
-      const content = readTextFile(full);
-      extras.push({ relativePath: rel, content, binary: content === null });
-    }
-  }
-}
