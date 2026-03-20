@@ -91,7 +91,7 @@ function isNewer(current: string, candidate: string): boolean {
  */
 export async function checkForUpdate(
   uniHome: string,
-  pkgName = "uni-plugin"
+  pkgName = "ai-plugin-bridge"
 ): Promise<{ current: string; latest: string } | null> {
   const current = getCurrentVersion();
   const cache = readCache(uniHome);

@@ -1,10 +1,10 @@
 #!/usr/bin/env bash
-# Scaffold a new uni-plugin registry repo.
+# Scaffold a new ai-plugin-bridge registry repo.
 # Usage: scripts/init-registry.sh <target-directory>
 
 set -euo pipefail
 
-TARGET="${1:-uni-plugin-registry}"
+TARGET="${1:-ai-plugin-bridge-registry}"
 
 if [ -e "$TARGET" ]; then
   echo "Error: '$TARGET' already exists" >&2
@@ -38,17 +38,17 @@ cp "$SCRIPT_DIR/validate-registry.js" "$TARGET/validate-registry.js"
 
 # README.md
 cat > "$TARGET/README.md" << 'README'
-# uni-plugin registry
+# ai-plugin-bridge registry
 
 A registry of pre-translated AI CLI plugins compatible with
-[uni-plugin](https://github.com/your-org/uni-plugin).
+[ai-plugin-bridge](https://github.com/your-org/ai-plugin-bridge).
 
 ## Using this registry
 
 Point your `pluginfile.yaml` at this repo:
 
 ```yaml
-registry: your-org/uni-plugin-registry
+registry: your-org/ai-plugin-bridge-registry
 
 targets:
   - claude-code
@@ -131,7 +131,7 @@ echo "Next steps:"
 echo "  cd $TARGET"
 echo "  git init && git add -A && git commit -m 'Initial registry scaffold'"
 echo "  # Create a GitHub repo, then:"
-echo "  git remote add origin https://github.com/your-org/uni-plugin-registry.git"
+echo "  git remote add origin https://github.com/your-org/ai-plugin-bridge-registry.git"
 echo "  git push -u origin main"
 echo ""
 echo "Then publish plugins with:"

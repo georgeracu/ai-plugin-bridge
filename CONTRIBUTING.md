@@ -3,8 +3,8 @@
 ## Dev environment
 
 ```bash
-git clone https://github.com/georgeracu/uni-plugin.git
-cd uni-plugin
+git clone https://github.com/georgeracu/ai-plugin-bridge.git
+cd ai-plugin-bridge
 npm install
 npm run build
 node dist/cli.js --help

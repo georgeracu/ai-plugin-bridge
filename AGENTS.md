@@ -4,7 +4,7 @@ This file provides guidance to AI agents when working with code in this reposito
 
 ## What this project does
 
-`uni-plugin` is a CLI tool that translates AI coding CLI plugins/extensions between three ecosystems — **Claude Code**, **Gemini CLI**, and **GitHub Copilot CLI** — so a developer can import a plugin once and install it everywhere.
+`ai-plugin-bridge` is a CLI tool that translates AI coding CLI plugins/extensions between three ecosystems — **Claude Code**, **Gemini CLI**, and **GitHub Copilot CLI** — so a developer can import a plugin once and install it everywhere.
 
 ## Build and run
 
@@ -57,7 +57,7 @@ Parsers normalise `${extensionPath}` / `${/}` (Gemini) to `{{PLUGIN_DIR}}`. Gene
 
 ### Claude Code marketplace
 
-Claude Code uses a marketplace model, not direct directory installs. After every `import` or `sync`, `updateClaudeMarketplace()` (in `generators/claude-code.ts`) regenerates `dist/claude-code/.claude-plugin/marketplace.json`. On first install, `ensureClaudeMarketplace()` (in `cli.ts`) registers that directory as the `uni-plugin-local` marketplace. Plugins are installed as `<name>@uni-plugin-local` to avoid collisions with the official marketplace.
+Claude Code uses a marketplace model, not direct directory installs. After every `import` or `sync`, `updateClaudeMarketplace()` (in `generators/claude-code.ts`) regenerates `dist/claude-code/.claude-plugin/marketplace.json`. On first install, `ensureClaudeMarketplace()` (in `cli.ts`) registers that directory as the `ai-plugin-bridge-local` marketplace. Plugins are installed as `<name>@ai-plugin-bridge-local` to avoid collisions with the official marketplace.
 
 ### Translation reports
 
@@ -65,10 +65,10 @@ Every generated plugin directory includes `translation-report.json` with per-com
 
 ## Runtime data
 
-`~/.uni-plugin/` (override with `UNI_PLUGIN_HOME`):
+`~/.ai-plugin-bridge/` (override with `AI_PLUGIN_BRIDGE_HOME`):
 
 ```
-~/.uni-plugin/
+~/.ai-plugin-bridge/
 ├── registry.json           # imported plugin metadata
 ├── registry/               # clone of remote plugin registry (for sync)
 ├── sources/                # shallow git clones of source repos

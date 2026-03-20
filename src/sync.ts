@@ -307,7 +307,7 @@ function syncFromSource(
 function installToTool(tool: ToolId, name: string, distDir: string): void {
   if (tool === "claude-code") {
     ensureClaudeMarketplace(join(distDir, "claude-code"));
-    execSync(`claude plugin install "${name}@uni-plugin-local"`, { stdio: "pipe" });
+    execSync(`claude plugin install "${name}@ai-plugin-bridge-local"`, { stdio: "pipe" });
   } else {
     const absDir = resolve(join(distDir, tool, name));
     const cmd =

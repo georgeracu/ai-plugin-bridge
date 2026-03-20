@@ -66,7 +66,7 @@ const PKG = JSON.parse(
 ) as { version: string; name: string };
 
 const UNI_HOME =
-  process.env.UNI_PLUGIN_HOME ?? join(process.env.HOME ?? "~", ".uni-plugin");
+  process.env.AI_PLUGIN_BRIDGE_HOME ?? join(process.env.HOME ?? "~", ".ai-plugin-bridge");
 
 // ---------------------------------------------------------------------------
 // Error-handling wrapper for command actions
@@ -121,7 +121,7 @@ program.hook("postAction", async () => {
   if (update) {
     console.log(
       chalk.dim(
-        `\nuni · Update available: ${update.current} → ${update.latest}. Run 'npm update -g uni-plugin' to update.`
+        `\nuni · Update available: ${update.current} → ${update.latest}. Run 'npm update -g ${PKG.name}' to update.`
       )
     );
   }
@@ -807,7 +807,7 @@ program
     `
 Examples:
   uni clean                      Remove sources/ (keeps dist/ and registry)
-  uni clean --all                Remove everything under ~/.uni-plugin/
+  uni clean --all                Remove everything under ~/.ai-plugin-bridge/
   uni clean --plugin code-review Remove a specific plugin completely
 `
   )
@@ -977,7 +977,7 @@ function isToolAvailable(tool: ToolId): boolean {
 function uninstallCommand(tool: ToolId, name: string): string {
   switch (tool) {
     case "claude-code":
-      return `claude plugin uninstall "${name}@uni-plugin-local"`;
+      return `claude plugin uninstall "${name}@ai-plugin-bridge-local"`;
     case "gemini-cli":
       return `gemini extensions uninstall "${name}"`;
     case "copilot-cli":
@@ -988,7 +988,7 @@ function uninstallCommand(tool: ToolId, name: string): string {
 function installCommand(tool: ToolId, name: string, distDir: string): string {
   switch (tool) {
     case "claude-code":
-      return `claude plugin install "${name}@uni-plugin-local"`;
+      return `claude plugin install "${name}@ai-plugin-bridge-local"`;
     case "gemini-cli":
       return `gemini extensions link "${resolve(join(distDir, "gemini-cli", name))}"`;
     case "copilot-cli":
@@ -1075,8 +1075,8 @@ function generatePluginfile(): void {
   const registry = loadRegistry(UNI_HOME);
   const entries = Object.entries(registry);
 
-  let yaml = `# uni-plugin pluginfile — run "uni sync" to install all plugins\n\n`;
-  yaml += `# registries:\n#   - name: community\n#     url: https://github.com/owner/uni-plugin-registry\n#     priority: 1\n\n`;
+  let yaml = `# ai-plugin-bridge pluginfile — run "uni sync" to install all plugins\n\n`;
+  yaml += `# registries:\n#   - name: community\n#     url: https://github.com/owner/ai-plugin-bridge-registry\n#     priority: 1\n\n`;
   yaml += `targets:\n  - claude-code\n  - gemini-cli\n  - copilot-cli\n\nplugins:\n`;
 
   if (entries.length === 0) {
@@ -1175,7 +1175,7 @@ registryCmd
 
 registryCmd
   .command("add")
-  .description("Add a registry to global config (~/.uni-plugin/config.yaml)")
+  .description("Add a registry to global config (~/.ai-plugin-bridge/config.yaml)")
   .argument("<name>", "Registry name (used in per-plugin registry pinning)")
   .argument("<url>", "Git-cloneable URL (HTTPS or SSH)")
   .option("--priority <n>", "Lookup priority — lower number checked first", "999")
@@ -1184,7 +1184,7 @@ registryCmd
     `
 Examples:
   uni registry add company https://github.com/acme/plugins --priority 1
-  uni registry add community git@github.com:george/uni-plugin-registry.git
+  uni registry add community git@github.com:george/ai-plugin-bridge-registry.git
 `
   )
   .action(
@@ -1231,7 +1231,7 @@ registryCmd
       globalConfig.registries.splice(idx, 1);
       saveGlobalConfig(UNI_HOME, globalConfig);
       ok(`Removed registry "${name}" from global config`);
-      log(chalk.dim("The local clone under ~/.uni-plugin/registries/ is preserved. Run 'uni clean' to remove it."));
+      log(chalk.dim("The local clone under ~/.ai-plugin-bridge/registries/ is preserved. Run 'uni clean' to remove it."));
       blank();
     })
   );

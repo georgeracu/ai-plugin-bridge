@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// Validate the integrity of a uni-plugin registry repo.
+// Validate the integrity of an ai-plugin-bridge registry repo.
 // Runs in the registry repo root. No npm dependencies.
 
 "use strict";

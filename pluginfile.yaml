@@ -1,8 +1,8 @@
-# uni-plugin — pluginfile.yaml
+# ai-plugin-bridge — pluginfile.yaml
 # Run `uni sync` to install all plugins listed here.
 
 # GitHub repo containing pre-translated plugins (registry-first strategy)
-# registry: https://github.com/george/uni-plugin-registry
+# registry: https://github.com/george/ai-plugin-bridge-registry
 
 # Default targets — install to all three CLI tools
 targets:
@@ -29,4 +29,8 @@ plugins:
   - name: software-engineering-team
     source: github/awesome-copilot
     subdir: plugins/software-engineering-team
+    ref: main
+
+  - name: gemini-cli-stitch
+    source: gemini-cli-extensions/stitch
     ref: main

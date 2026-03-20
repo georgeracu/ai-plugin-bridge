@@ -13,7 +13,7 @@ import { normalizeGitUrl } from "./utils.js";
 
 /**
  * Manages interactions with multiple remote plugin registry repos.
- * Each registry is cloned to ~/.uni-plugin/registries/{name}/.
+ * Each registry is cloned to ~/.ai-plugin-bridge/registries/{name}/.
  *
  * Indexes are cached in memory for the lifetime of the instance — don't
  * re-read from disk for every plugin lookup.
@@ -33,7 +33,7 @@ export class RegistryManager {
 
   /**
    * Clone or pull a registry and cache its index.
-   * Migrates the legacy ~/.uni-plugin/registry/ clone on first access.
+   * Migrates the legacy ~/.ai-plugin-bridge/registry/ clone on first access.
    */
   sync(config: RegistryConfig): void {
     this.migrateLegacyRegistry(config.name);
@@ -148,8 +148,8 @@ export class RegistryManager {
   }
 
   /**
-   * Move the old single-registry clone at ~/.uni-plugin/registry/ to
-   * ~/.uni-plugin/registries/{name}/ if the new path doesn't exist yet.
+   * Move the old single-registry clone at ~/.ai-plugin-bridge/registry/ to
+   * ~/.ai-plugin-bridge/registries/{name}/ if the new path doesn't exist yet.
    */
   private migrateLegacyRegistry(name: string): void {
     const oldDir = join(this.uniHome, "registry");

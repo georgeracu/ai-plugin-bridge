@@ -166,9 +166,9 @@ export function updateClaudeMarketplace(claudeDistDir: string): void {
     JSON.stringify(
       {
         $schema: "https://anthropic.com/claude-code/marketplace.schema.json",
-        name: "uni-plugin-local",
-        description: "Locally translated plugins managed by uni-plugin",
-        owner: { name: "uni-plugin" },
+        name: "ai-plugin-bridge-local",
+        description: "Locally translated plugins managed by ai-plugin-bridge",
+        owner: { name: "ai-plugin-bridge" },
         plugins,
       },
       null,
@@ -178,7 +178,7 @@ export function updateClaudeMarketplace(claudeDistDir: string): void {
 }
 
 /**
- * Ensure the uni-plugin-local marketplace is registered with the Claude CLI.
+ * Ensure the ai-plugin-bridge-local marketplace is registered with the Claude CLI.
  * Idempotent — safe to call on every install.
  */
 export function ensureClaudeMarketplace(claudeDistDir: string): void {

@@ -1,5 +1,5 @@
 {
-  "name": "uni-plugin",
+  "name": "ai-plugin-bridge",
   "version": "0.1.0",
   "description": "Universal plugin translator for AI coding CLI tools",
   "type": "module",
@@ -9,7 +9,8 @@
   "files": [
     "dist/",
     "README.md",
-    "LICENSE"
+    "LICENSE",
+    "CHANGELOG.md"
   ],
   "engines": {
     "node": ">=22"
@@ -34,12 +35,12 @@
   "license": "MIT",
   "repository": {
     "type": "git",
-    "url": "https://github.com/georgeracu/uni-plugin.git"
+    "url": "https://github.com/georgeracu/ai-plugin-bridge.git"
   },
   "bugs": {
-    "url": "https://github.com/georgeracu/uni-plugin/issues"
+    "url": "https://github.com/georgeracu/ai-plugin-bridge/issues"
   },
-  "homepage": "https://github.com/georgeracu/uni-plugin#readme",
+  "homepage": "https://github.com/georgeracu/ai-plugin-bridge#readme",
   "dependencies": {
     "yaml": "^2.7.0",
     "commander": "^13.1.0",

@@ -7,7 +7,7 @@ const DEFAULT_TARGETS: ToolId[] = ["claude-code", "gemini-cli", "copilot-cli"];
 
 /**
  * Locate and load a pluginfile.yaml.
- * Search order: explicit path > ./pluginfile.yaml > ~/.uni-plugin/pluginfile.yaml
+ * Search order: explicit path > ./pluginfile.yaml > ~/.ai-plugin-bridge/pluginfile.yaml
  */
 export function loadPluginfile(explicitPath?: string): {
   pluginfile: Pluginfile;
@@ -18,8 +18,8 @@ export function loadPluginfile(explicitPath?: string): {
     : [
         join(process.cwd(), "pluginfile.yaml"),
         join(
-          process.env.UNI_PLUGIN_HOME ??
-            join(process.env.HOME ?? "~", ".uni-plugin"),
+          process.env.AI_PLUGIN_BRIDGE_HOME ??
+            join(process.env.HOME ?? "~", ".ai-plugin-bridge"),
           "pluginfile.yaml"
         ),
       ];

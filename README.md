@@ -1,10 +1,10 @@
-# uni-plugin
+# ai-plugin-bridge
 
 Import once, install everywhere — a universal plugin translator for AI coding CLI tools.
 
 ## The problem
 
-You found a great plugin for Gemini CLI, but you also use Claude Code and GitHub Copilot CLI. Today you'd have to track down or write an equivalent for each tool separately — if one even exists. uni-plugin solves this by translating plugins between all three ecosystems automatically.
+You found a great plugin for Gemini CLI, but you also use Claude Code and GitHub Copilot CLI. Today you'd have to track down or write an equivalent for each tool separately — if one even exists. ai-plugin-bridge solves this by translating plugins between all three ecosystems automatically.
 
 ## How it works
 
@@ -31,13 +31,13 @@ GitHub repo
  |  -> Copilot CLI (plugin.json)                |
  +---------------------------------------------+
       v
- ~/.uni-plugin/dist/{tool}/{plugin-name}/
+ ~/.ai-plugin-bridge/dist/{tool}/{plugin-name}/
 ```
 
 ## Quick start
 
 ```bash
-npm install -g uni-plugin
+npm install -g ai-plugin-bridge
 
 # Import a plugin from any supported source
 uni import gemini-cli-extensions/code-review
@@ -55,7 +55,7 @@ Define your plugins declaratively in `pluginfile.yaml` and sync them all at once
 
 ```yaml
 # Optional: pre-translated plugin registry (skips clone + translate)
-registry: https://github.com/your-org/uni-plugin-registry
+registry: https://github.com/your-org/ai-plugin-bridge-registry
 
 targets:
   - claude-code
@@ -117,7 +117,7 @@ Common flags: `--only <tools>` (comma-separated), `--dry-run`, `--ref <ref>`, `-
 
 ## Using registries
 
-Registries are git repos of pre-translated plugins. When configured, uni-plugin copies from the registry instead of cloning and translating from source — faster and reproducible.
+Registries are git repos of pre-translated plugins. When configured, ai-plugin-bridge copies from the registry instead of cloning and translating from source — faster and reproducible.
 
 ### Multiple registries with priority ordering
 
@@ -128,7 +128,7 @@ registries:
     priority: 1    # checked first
 
   - name: community
-    url: https://github.com/george/uni-plugin-registry
+    url: https://github.com/george/ai-plugin-bridge-registry
     priority: 2    # fallback
 
 plugins:
@@ -147,22 +147,22 @@ Resolution order: for each plugin, the priority chain is walked from lowest to h
 
 ### Global registry configuration
 
-Registries added via `uni registry add` are stored in `~/.uni-plugin/config.yaml` and apply to every pluginfile. Pluginfile registries take precedence on name collision.
+Registries added via `uni registry add` are stored in `~/.ai-plugin-bridge/config.yaml` and apply to every pluginfile. Pluginfile registries take precedence on name collision.
 
 ```bash
 uni registry add company https://github.com/acme-corp/ai-plugins-registry --priority 1
-uni registry add community https://github.com/george/uni-plugin-registry --priority 2
+uni registry add community https://github.com/george/ai-plugin-bridge-registry --priority 2
 uni registry list
 uni registry search code-review
 uni registry update          # pull all registries
 uni registry update company  # pull one registry
 ```
 
-Registry clones are stored at `~/.uni-plugin/registries/{name}/`.
+Registry clones are stored at `~/.ai-plugin-bridge/registries/{name}/`.
 
 ## Private registries
 
-Private registries work with any git authentication method — uni-plugin relies entirely on git's credential system.
+Private registries work with any git authentication method — ai-plugin-bridge relies entirely on git's credential system.
 
 ### SSH (recommended for teams)
 
