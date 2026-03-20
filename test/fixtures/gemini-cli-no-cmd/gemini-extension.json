@@ -1,0 +1,10 @@
+{
+  "name": "hosted-plugin",
+  "version": "0.1.0",
+  "description": "Plugin whose MCP server has no local command",
+  "mcpServers": {
+    "hosted-server": {
+      "args": []
+    }
+  }
+}

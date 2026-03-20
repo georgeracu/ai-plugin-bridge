@@ -64,10 +64,10 @@ plugins:
 Then run:
 
 ```bash
-uni sync
+aib sync
 ```
 
-`uni sync` will clone this registry, look up each plugin in `registry-index.json`,
+`aib sync` will clone this registry, look up each plugin in `registry-index.json`,
 and copy the pre-translated files to your local dist rather than cloning and
 translating from source.
 
@@ -86,12 +86,12 @@ plugins/<name>/
 
 ## Adding plugins
 
-Use the `uni publish` command — do not edit `dist/` files manually.
+Use the `aib publish` command — do not edit `dist/` files manually.
 
 ```bash
-uni publish code-review --registry /path/to/this/repo
+aib publish code-review --registry /path/to/this/repo
 # or publish everything at once:
-uni publish --all --registry /path/to/this/repo
+aib publish --all --registry /path/to/this/repo
 ```
 
 After publishing, commit and push:
@@ -135,5 +135,5 @@ echo "  git remote add origin https://github.com/your-org/ai-plugin-bridge-regis
 echo "  git push -u origin main"
 echo ""
 echo "Then publish plugins with:"
-echo "  uni publish --all --registry \$(pwd)"
+echo "  aib publish --all --registry \$(pwd)"
 echo ""

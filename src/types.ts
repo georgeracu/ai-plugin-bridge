@@ -19,7 +19,8 @@ export const ALL_TOOLS: ToolId[] = ["claude-code", "gemini-cli", "copilot-cli"];
 
 export interface McpServerConfig {
   name: string;
-  command: string;
+  /** Undefined when the source extension did not declare a launch command. */
+  command?: string;
   args: string[];
   cwd?: string;
   env?: Record<string, string>;
@@ -92,6 +93,9 @@ export interface UniversalPlugin {
 
   /** Extra files that should be copied as-is (scripts, assets) */
   extraFiles: ExtraFile[];
+
+  /** Warnings raised during parsing (e.g. missing MCP command). Generators merge these into the translation report. */
+  parseWarnings?: string[];
 }
 
 export interface ExtraFile {
@@ -188,7 +192,7 @@ export interface SyncResult {
 }
 
 // ---------------------------------------------------------------------------
-// Registry index and plugin metadata (for uni publish / registry-client)
+// Registry index and plugin metadata (for aib publish / registry-client)
 // ---------------------------------------------------------------------------
 
 export interface PluginTargetSummary {

@@ -64,7 +64,7 @@ function publishPlugin(
 ): string {
   const entry = registry[name] as Record<string, unknown> | undefined;
   if (!entry) {
-    throw new Error(`not found in local registry — run: uni import`);
+    throw new Error(`not found in local registry — run: aib import`);
   }
 
   const pinnedRef = (entry.pinnedRef as string) ?? (entry.ref as string);
@@ -104,7 +104,7 @@ function publishPlugin(
   }
 
   if (availableTargets.length === 0) {
-    throw new Error(`no translated dist files found — run: uni import`);
+    throw new Error(`no translated dist files found — run: aib import`);
   }
 
   const description = getPluginDescription(distDir, name, sourceTool);

@@ -12,7 +12,7 @@ export function generateGeminiCliExtension(
   outputDir: string
 ): TranslationReport {
   const components: ComponentReport[] = [];
-  const warnings: string[] = [];
+  const warnings: string[] = [...(plugin.parseWarnings ?? [])];
 
   mkdirSync(outputDir, { recursive: true });
 
@@ -30,7 +30,7 @@ export function generateGeminiCliExtension(
     const mcpServers: Record<string, unknown> = {};
     for (const server of plugin.mcpServers) {
       mcpServers[server.name] = {
-        command: server.command,
+        ...(server.command && { command: server.command }),
         args: server.args.map((a) =>
           a.replace(/\{\{PLUGIN_DIR\}\}/g, "${extensionPath}")
         ),
@@ -42,11 +42,20 @@ export function generateGeminiCliExtension(
         }),
         ...(server.env && { env: server.env }),
       };
-      components.push({
-        type: "mcp-server",
-        name: server.name,
-        status: "translated",
-      });
+      if (!server.command) {
+        components.push({
+          type: "mcp-server",
+          name: server.name,
+          status: "partial",
+          reason: "No command field — MCP server cannot be started",
+        });
+      } else {
+        components.push({
+          type: "mcp-server",
+          name: server.name,
+          status: "translated",
+        });
+      }
     }
     manifest.mcpServers = mcpServers;
   }

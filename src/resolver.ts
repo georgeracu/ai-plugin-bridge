@@ -38,7 +38,7 @@ export function resolvePlugin(
     }
     throw new Error(
       `Plugin "${entry.name}" not found in registry "${entry.registry}". ` +
-        `Run 'uni import' to translate from source, or remove the registry pin.`
+        `Run 'aib import' to translate from source, or remove the registry pin.`
     );
   }
 

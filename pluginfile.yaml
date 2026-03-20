@@ -1,5 +1,5 @@
 # ai-plugin-bridge — pluginfile.yaml
-# Run `uni sync` to install all plugins listed here.
+# Run `aib sync` to install all plugins listed here.
 
 # GitHub repo containing pre-translated plugins (registry-first strategy)
 # registry: https://github.com/george/ai-plugin-bridge-registry

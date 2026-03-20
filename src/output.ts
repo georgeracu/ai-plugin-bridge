@@ -1,5 +1,5 @@
 /**
- * Consistent output formatting for the uni CLI.
+ * Consistent output formatting for the aib CLI.
  * All user-facing messages go through these helpers.
  */
 import chalk from "chalk";
@@ -32,7 +32,7 @@ export function isVerbose(): boolean {
 
 /** `\nuni · msg` — bold section header */
 export function header(msg: string): void {
-  console.log(`\n${chalk.bold("uni")} · ${msg}`);
+  console.log(`\n${chalk.bold("aib")} · ${msg}`);
 }
 
 /** Blank line */

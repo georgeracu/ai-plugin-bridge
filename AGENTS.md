@@ -31,7 +31,7 @@ Source repo → Detector → Parser → UniversalPlugin (IR) → Generator (×3)
 - **`src/translator.ts`** — orchestrates detect → parse → generate; called by both `import` and `sync`
 - **`src/cli.ts`** — all CLI commands (Commander.js); contains helper functions for install/uninstall commands and Claude marketplace management
 - **`src/pluginfile.ts`** — parses and validates `pluginfile.yaml`
-- **`src/sync.ts`** — orchestrates the `uni sync` workflow: registry diff, registry-first fetch, source fallback, install
+- **`src/sync.ts`** — orchestrates the `aib sync` workflow: registry diff, registry-first fetch, source fallback, install
 - **`src/registry-client.ts`** — clones/pulls a remote registry repo and copies pre-translated plugins to local dist
 
 ## Key concepts

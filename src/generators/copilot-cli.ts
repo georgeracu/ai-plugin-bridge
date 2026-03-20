@@ -12,7 +12,7 @@ export function generateCopilotCliPlugin(
   outputDir: string
 ): TranslationReport {
   const components: ComponentReport[] = [];
-  const warnings: string[] = [];
+  const warnings: string[] = [...(plugin.parseWarnings ?? [])];
 
   mkdirSync(outputDir, { recursive: true });
 
@@ -31,7 +31,7 @@ export function generateCopilotCliPlugin(
     const mcpConfig: Record<string, unknown> = {};
     for (const server of plugin.mcpServers) {
       mcpConfig[server.name] = {
-        command: server.command,
+        ...(server.command && { command: server.command }),
         args: server.args.map((a) =>
           a.replace(/\{\{PLUGIN_DIR\}\}/g, "${PLUGIN_DIR}")
         ),
@@ -40,11 +40,20 @@ export function generateCopilotCliPlugin(
         }),
         ...(server.env && { env: server.env }),
       };
-      components.push({
-        type: "mcp-server",
-        name: server.name,
-        status: "translated",
-      });
+      if (!server.command) {
+        components.push({
+          type: "mcp-server",
+          name: server.name,
+          status: "partial",
+          reason: "No command field — MCP server cannot be started",
+        });
+      } else {
+        components.push({
+          type: "mcp-server",
+          name: server.name,
+          status: "translated",
+        });
+      }
     }
     writeFileSync(
       join(outputDir, ".mcp.json"),

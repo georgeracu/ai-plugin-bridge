@@ -44,11 +44,11 @@ export function loadPluginfile(explicitPath?: string): {
   }
 
   throw new Error(
-    `No pluginfile.yaml found. Run 'uni sync --init' to create one, or specify a path with --file.`
+    `No pluginfile.yaml found. Run 'aib sync --init' to create one, or specify a path with --file.`
   );
 }
 
-/** Parse and validate a pluginfile — also used by `uni validate`. */
+/** Parse and validate a pluginfile — also used by `aib validate`. */
 export function validatePluginfile(
   filePath: string
 ): { pluginfile: Pluginfile; warnings: string[] } {

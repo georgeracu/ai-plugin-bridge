@@ -30,7 +30,7 @@ export function parseGeminiCliExtension(
   const description = (manifest?.description as string) ?? "";
 
   // MCP servers — defined inline in the manifest
-  const mcpServers = parseMcpServers(manifest);
+  const { servers: mcpServers, warnings: parseWarnings } = parseMcpServers(manifest);
 
   // Skills
   const skills = parseSkills(pluginDir);
@@ -65,30 +65,43 @@ export function parseGeminiCliExtension(
     hooks,
     contextFile,
     extraFiles,
+    parseWarnings: parseWarnings.length > 0 ? parseWarnings : undefined,
   };
 }
 
 function parseMcpServers(
   manifest: Record<string, unknown> | null
-): McpServerConfig[] {
-  if (!manifest?.mcpServers) return [];
+): { servers: McpServerConfig[]; warnings: string[] } {
+  if (!manifest?.mcpServers) return { servers: [], warnings: [] };
 
-  const servers = manifest.mcpServers as Record<
+  const raw = manifest.mcpServers as Record<
     string,
-    { command: string; args?: string[]; cwd?: string; env?: Record<string, string> }
+    { command?: string; args?: string[]; cwd?: string; env?: Record<string, string> }
   >;
 
-  return Object.entries(servers).map(([name, config]) => ({
-    name,
-    command: config.command,
-    args: (config.args ?? []).map((a) =>
-      // Normalise Gemini's ${extensionPath} variable for later re-mapping
-      a.replace(/\$\{extensionPath\}/g, "{{PLUGIN_DIR}}")
-        .replace(/\$\{\/\}/g, "/")
-    ),
-    cwd: config.cwd?.replace(/\$\{extensionPath\}/g, "{{PLUGIN_DIR}}"),
-    env: config.env,
-  }));
+  const servers: McpServerConfig[] = [];
+  const warnings: string[] = [];
+
+  for (const [name, config] of Object.entries(raw)) {
+    if (!config.command) {
+      warnings.push(
+        `MCP server "${name}" has no command field — it cannot be started by any target tool`
+      );
+    }
+    servers.push({
+      name,
+      command: config.command,
+      args: (config.args ?? []).map((a) =>
+        // Normalise Gemini's ${extensionPath} variable for later re-mapping
+        a.replace(/\$\{extensionPath\}/g, "{{PLUGIN_DIR}}")
+          .replace(/\$\{\/\}/g, "/")
+      ),
+      cwd: config.cwd?.replace(/\$\{extensionPath\}/g, "{{PLUGIN_DIR}}"),
+      env: config.env,
+    });
+  }
+
+  return { servers, warnings };
 }
 
 function parseSkills(pluginDir: string): Skill[] {

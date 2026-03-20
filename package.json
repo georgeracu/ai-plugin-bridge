@@ -4,7 +4,7 @@
   "description": "Universal plugin translator for AI coding CLI tools",
   "type": "module",
   "bin": {
-    "uni": "./dist/cli.js"
+    "aib": "./dist/cli.js"
   },
   "files": [
     "dist/",
@@ -18,8 +18,10 @@
   "scripts": {
     "build": "tsc",
     "postbuild": "chmod +x dist/cli.js",
+    "build:test": "tsc -p tsconfig.test.json",
     "dev": "tsc --watch",
     "start": "node dist/cli.js",
+    "test": "npm run build && npm run build:test && node --test dist-test/*.test.js",
     "prepublishOnly": "npm run build"
   },
   "keywords": [

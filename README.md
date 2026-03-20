@@ -40,13 +40,13 @@ GitHub repo
 npm install -g ai-plugin-bridge
 
 # Import a plugin from any supported source
-uni import gemini-cli-extensions/code-review
+aib import gemini-cli-extensions/code-review
 
 # See what translated and what didn't
-uni report code-review
+aib report code-review
 
 # Install to all three tools at once
-uni install code-review
+aib install code-review
 ```
 
 ## Using a pluginfile
@@ -76,9 +76,9 @@ plugins:
 ```
 
 ```bash
-uni sync              # download, translate, and install everything
-uni sync --dry-run    # preview what would change
-uni sync --init       # generate a pluginfile from your existing imports
+aib sync              # download, translate, and install everything
+aib sync --dry-run    # preview what would change
+aib sync --init       # generate a pluginfile from your existing imports
 ```
 
 ## Translation support
@@ -96,22 +96,22 @@ uni sync --init       # generate a pluginfile from your existing imports
 
 | Command | Description |
 |---------|-------------|
-| `uni import <repo>` | Import a plugin from a GitHub repo and translate for all tools |
-| `uni sync` | Sync plugins defined in pluginfile.yaml |
-| `uni install <name>` | Install a translated plugin into target CLI tools |
-| `uni remove <name>` | Uninstall a plugin and delete translated files |
-| `uni list` | List imported plugins, or plugins available in the registry (`--registry`) |
-| `uni report <name>` | Show per-component translation report |
-| `uni publish [name]` | Publish translated plugins to a local registry repo clone |
-| `uni validate` | Validate pluginfile.yaml and report issues |
-| `uni registry list` | List configured registries and their status |
-| `uni registry add <name> <url>` | Add a registry to global config |
-| `uni registry remove <name>` | Remove a registry from global config |
-| `uni registry update [name]` | Pull latest changes for one or all registries |
-| `uni registry search <query>` | Search plugins across all configured registries |
-| `uni doctor` | Check environment, tool availability, and data directory |
-| `uni clean` | Remove cached source clones (`--all` or `--plugin <name>`) |
-| `uni completions <shell>` | Output shell completion script (bash, zsh, fish) |
+| `aib import <repo>` | Import a plugin from a GitHub repo and translate for all tools |
+| `aib sync` | Sync plugins defined in pluginfile.yaml |
+| `aib install <name>` | Install a translated plugin into target CLI tools |
+| `aib remove <name>` | Uninstall a plugin and delete translated files |
+| `aib list` | List imported plugins, or plugins available in the registry (`--registry`) |
+| `aib report <name>` | Show per-component translation report |
+| `aib publish [name]` | Publish translated plugins to a local registry repo clone |
+| `aib validate` | Validate pluginfile.yaml and report issues |
+| `aib registry list` | List configured registries and their status |
+| `aib registry add <name> <url>` | Add a registry to global config |
+| `aib registry remove <name>` | Remove a registry from global config |
+| `aib registry update [name]` | Pull latest changes for one or all registries |
+| `aib registry search <query>` | Search plugins across all configured registries |
+| `aib doctor` | Check environment, tool availability, and data directory |
+| `aib clean` | Remove cached source clones (`--all` or `--plugin <name>`) |
+| `aib completions <shell>` | Output shell completion script (bash, zsh, fish) |
 
 Common flags: `--only <tools>` (comma-separated), `--dry-run`, `--ref <ref>`, `--subdir <path>`, `--yes` / `-y`.
 
@@ -147,15 +147,15 @@ Resolution order: for each plugin, the priority chain is walked from lowest to h
 
 ### Global registry configuration
 
-Registries added via `uni registry add` are stored in `~/.ai-plugin-bridge/config.yaml` and apply to every pluginfile. Pluginfile registries take precedence on name collision.
+Registries added via `aib registry add` are stored in `~/.ai-plugin-bridge/config.yaml` and apply to every pluginfile. Pluginfile registries take precedence on name collision.
 
 ```bash
-uni registry add company https://github.com/acme-corp/ai-plugins-registry --priority 1
-uni registry add community https://github.com/george/ai-plugin-bridge-registry --priority 2
-uni registry list
-uni registry search code-review
-uni registry update          # pull all registries
-uni registry update company  # pull one registry
+aib registry add company https://github.com/acme-corp/ai-plugins-registry --priority 1
+aib registry add community https://github.com/george/ai-plugin-bridge-registry --priority 2
+aib registry list
+aib registry search code-review
+aib registry update          # pull all registries
+aib registry update company  # pull one registry
 ```
 
 Registry clones are stored at `~/.ai-plugin-bridge/registries/{name}/`.

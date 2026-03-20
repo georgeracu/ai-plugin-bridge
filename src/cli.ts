@@ -89,7 +89,7 @@ function action<T extends unknown[]>(
 // ---------------------------------------------------------------------------
 
 program
-  .name("uni")
+  .name("aib")
   .description("Universal AI CLI plugin translator — import once, install everywhere")
   .version(PKG.version, "-v, --version", "Print version number")
   .option("--verbose", "Show full error stack traces and debug output")
@@ -99,14 +99,14 @@ program.addHelpText(
   "after",
   `
 Examples:
-  uni import gemini-cli-extensions/code-review
-  uni import anthropics/claude-code --subdir plugins/ralph-wiggum
-  uni sync                        Install all plugins from pluginfile.yaml
-  uni sync --dry-run              Preview what would be installed
-  uni list                        Show imported plugins
-  uni report code-review          Show translation details
-  uni publish code-review         Publish to your registry
-  uni doctor                      Check environment and tool availability
+  aib import gemini-cli-extensions/code-review
+  aib import anthropics/claude-code --subdir plugins/ralph-wiggum
+  aib sync                        Install all plugins from pluginfile.yaml
+  aib sync --dry-run              Preview what would be installed
+  aib list                        Show imported plugins
+  aib report code-review          Show translation details
+  aib publish code-review         Publish to your registry
+  aib doctor                      Check environment and tool availability
 `
 );
 
@@ -128,7 +128,7 @@ program.hook("postAction", async () => {
 });
 
 // ---------------------------------------------------------------------------
-// uni import <source> [--ref <ref>] [--subdir <path>] [--only <tools>]
+// aib import <source> [--ref <ref>] [--subdir <path>] [--only <tools>]
 // ---------------------------------------------------------------------------
 
 program
@@ -145,10 +145,10 @@ program
     "after",
     `
 Examples:
-  uni import gemini-cli-extensions/code-review
-  uni import gemini-cli-extensions/jules --ref v1.2.0
-  uni import anthropics/claude-code --subdir plugins/ralph-wiggum
-  uni import github/awesome-copilot --subdir plugins/software-engineering-team --only claude-code,gemini-cli
+  aib import gemini-cli-extensions/code-review
+  aib import gemini-cli-extensions/jules --ref v1.2.0
+  aib import anthropics/claude-code --subdir plugins/ralph-wiggum
+  aib import github/awesome-copilot --subdir plugins/software-engineering-team --only claude-code,gemini-cli
 `
   )
   .action(
@@ -227,12 +227,12 @@ Examples:
 
       blank();
       ok(`Imported ${chalk.bold(result.plugin.name)}`);
-      log(chalk.dim(`Run 'uni install ${result.plugin.name}' to install, or 'uni sync' if using a pluginfile.`));
+      log(chalk.dim(`Run 'aib install ${result.plugin.name}' to install, or 'aib sync' if using a pluginfile.`));
     })
   );
 
 // ---------------------------------------------------------------------------
-// uni install <name> [--only <tools>] [--dry-run] [--yes]
+// aib install <name> [--only <tools>] [--dry-run] [--yes]
 // ---------------------------------------------------------------------------
 
 program
@@ -245,9 +245,9 @@ program
     "after",
     `
 Examples:
-  uni install code-review
-  uni install code-review --only claude-code
-  uni install code-review --dry-run
+  aib install code-review
+  aib install code-review --only claude-code
+  aib install code-review --dry-run
 `
   )
   .action(
@@ -287,7 +287,7 @@ Examples:
       for (const tool of targets) {
         const pluginDir = join(distDir, tool, name);
         if (!existsSync(pluginDir)) {
-          log(chalk.dim(`${tool}: not translated — run 'uni import' first`));
+          log(chalk.dim(`${tool}: not translated — run 'aib import' first`));
           continue;
         }
 
@@ -314,7 +314,7 @@ Examples:
   );
 
 // ---------------------------------------------------------------------------
-// uni list [--registry] [--registry-dir <path>]
+// aib list [--registry] [--registry-dir <path>]
 // ---------------------------------------------------------------------------
 
 program
@@ -330,8 +330,8 @@ program
     "after",
     `
 Examples:
-  uni list
-  uni list --registry
+  aib list
+  aib list --registry
 `
   )
   .action(
@@ -341,7 +341,7 @@ Examples:
         const index = loadRegistryIndex(opts.registryDir);
         const entries = Object.entries(index.plugins);
         if (entries.length === 0) {
-          log("No plugins in registry. Run: uni publish <name>");
+          log("No plugins in registry. Run: aib publish <name>");
           return;
         }
         header("Available in registry");
@@ -357,7 +357,7 @@ Examples:
 
       const registry = loadRegistry(UNI_HOME);
       if (Object.keys(registry).length === 0) {
-        log("No plugins imported yet. Run: uni import <source>");
+        log("No plugins imported yet. Run: aib import <source>");
         return;
       }
 
@@ -376,7 +376,7 @@ Examples:
   );
 
 // ---------------------------------------------------------------------------
-// uni report <name>
+// aib report <name>
 // ---------------------------------------------------------------------------
 
 program
@@ -387,8 +387,8 @@ program
     "after",
     `
 Examples:
-  uni report code-review
-  uni report jules
+  aib report code-review
+  aib report jules
 `
   )
   .action(
@@ -429,81 +429,97 @@ Examples:
       }
 
       if (!found) {
-        log(`No translations found for "${name}". Run: uni import`);
+        log(`No translations found for "${name}". Run: aib import`);
       }
     })
   );
 
 // ---------------------------------------------------------------------------
-// uni remove <name> [--only <tools>] [--dry-run]
+// aib remove <name> [--only <tools>] [--dry-run]
 // ---------------------------------------------------------------------------
 
 program
   .command("remove")
   .description("Uninstall a plugin from target CLI tools and remove translated files")
-  .argument("<name>", "Plugin name (as shown in registry)")
+  .argument("[name]", "Plugin name (as shown in registry)")
+  .option("--all", "Remove all imported plugins")
   .option("--only <tools>", "Comma-separated list of target tools to uninstall from")
   .option("--dry-run", "Show what would be removed without executing")
   .addHelpText(
     "after",
     `
 Examples:
-  uni remove code-review
-  uni remove code-review --only gemini-cli
-  uni remove code-review --dry-run
+  aib remove code-review
+  aib remove code-review --only gemini-cli
+  aib remove code-review --dry-run
+  aib remove --all
+  aib remove --all --dry-run
 `
   )
   .action(
-    action(async (name: string, opts) => {
+    action(async (name: string | undefined, opts) => {
       const distDir = join(UNI_HOME, "dist");
       const dryRun: boolean = opts.dryRun ?? false;
       const targets: ToolId[] = opts.only
         ? opts.only.split(",").map((t: string) => t.trim() as ToolId)
         : ALL_TOOLS;
 
+      if (opts.all) {
+        const registry = loadRegistry(UNI_HOME);
+        const names = Object.keys(registry);
+
+        if (names.length === 0) {
+          log("No plugins imported.");
+          blank();
+          return;
+        }
+
+        header(`${dryRun ? "[dry-run] " : ""}Removing all plugins`);
+        for (const n of names) {
+          log(chalk.dim(`  ${n}`));
+        }
+        blank();
+
+        if (!dryRun) {
+          const proceed = await confirm(`Remove ${names.length} plugin(s)?`, false);
+          if (!proceed) {
+            log("Aborted.");
+            blank();
+            return;
+          }
+        }
+
+        for (const n of names) {
+          await removePlugin(n, targets, distDir, dryRun);
+        }
+
+        if (!dryRun) {
+          const claudeDistDir = join(distDir, "claude-code");
+          if (existsSync(claudeDistDir)) {
+            updateClaudeMarketplace(claudeDistDir);
+          }
+        }
+
+        blank();
+        return;
+      }
+
+      if (!name) {
+        fatal("Provide a plugin name or use --all to remove everything.");
+      }
+
       const registry = loadRegistry(UNI_HOME);
       if (!registry[name]) {
-        fatal(`Plugin "${name}" not found in registry. Run 'uni list' to see imported plugins.`);
+        fatal(`Plugin "${name}" not found in registry. Run 'aib list' to see imported plugins.`);
       }
 
       header(`${dryRun ? "[dry-run] " : ""}Removing ${chalk.bold(name)}`);
-
-      for (const tool of targets) {
-        const pluginDir = join(distDir, tool, name);
-        if (!existsSync(pluginDir)) {
-          log(chalk.dim(`${tool}: not installed`));
-          continue;
-        }
-
-        if (dryRun) {
-          log(`${tool}: ${chalk.dim(uninstallCommand(tool, name))}`);
-          log(chalk.dim(`  rm -rf ${pluginDir}`));
-          continue;
-        }
-
-        try {
-          execSync(uninstallCommand(tool, name), { stdio: "pipe" });
-        } catch {
-          // Tool may not have it installed — continue to clean up dist files
-        }
-
-        try {
-          rmSync(pluginDir, { recursive: true, force: true });
-          ok(`${tool}: removed`);
-        } catch (err) {
-          fail(`${tool}: failed — ${errorMessage(err)}`);
-        }
-      }
+      await removePlugin(name, targets, distDir, dryRun);
 
       if (!dryRun) {
         const claudeDistDir = join(distDir, "claude-code");
         if (existsSync(claudeDistDir)) {
           updateClaudeMarketplace(claudeDistDir);
-        }
-
-        if (ALL_TOOLS.every((t) => targets.includes(t))) {
-          deleteRegistryEntry(UNI_HOME, name);
-          ok("registry: entry removed");
         }
       }
 
@@ -512,7 +528,7 @@ Examples:
   );
 
 // ---------------------------------------------------------------------------
-// uni sync [--file <path>] [--from-source] [--dry-run] [--init]
+// aib sync [--file <path>] [--from-source] [--dry-run] [--init]
 // ---------------------------------------------------------------------------
 
 program
@@ -526,11 +542,11 @@ program
     "after",
     `
 Examples:
-  uni sync
-  uni sync --dry-run
-  uni sync --from-source
-  uni sync --init
-  uni sync --file /path/to/pluginfile.yaml
+  aib sync
+  aib sync --dry-run
+  aib sync --from-source
+  aib sync --init
+  aib sync --file /path/to/pluginfile.yaml
 `
   )
   .action(
@@ -563,7 +579,7 @@ Examples:
   );
 
 // ---------------------------------------------------------------------------
-// uni validate [--file <path>]
+// aib validate [--file <path>]
 // ---------------------------------------------------------------------------
 
 program
@@ -574,15 +590,15 @@ program
     "after",
     `
 Examples:
-  uni validate
-  uni validate --file ./myproject/pluginfile.yaml
+  aib validate
+  aib validate --file ./myproject/pluginfile.yaml
 `
   )
   .action(
     action((opts) => {
       const filePath = opts.file ?? join(process.cwd(), "pluginfile.yaml");
       if (!existsSync(filePath)) {
-        fatal(`${filePath} not found. Run 'uni sync --init' to create one.`);
+        fatal(`${filePath} not found. Run 'aib sync --init' to create one.`);
       }
 
       header(`Validating ${chalk.bold(filePath)}`);
@@ -612,7 +628,7 @@ Examples:
   );
 
 // ---------------------------------------------------------------------------
-// uni publish <name> [--registry <path>] [--all]
+// aib publish <name> [--registry <path>] [--all]
 // ---------------------------------------------------------------------------
 
 program
@@ -629,9 +645,9 @@ program
     "after",
     `
 Examples:
-  uni publish code-review
-  uni publish --all
-  uni publish code-review --registry /path/to/registry-repo
+  aib publish code-review
+  aib publish --all
+  aib publish code-review --registry /path/to/registry-repo
 `
   )
   .action(
@@ -643,7 +659,7 @@ Examples:
         const registry = loadRegistry(UNI_HOME);
         names = Object.keys(registry);
         if (names.length === 0) {
-          fatal("No plugins imported yet. Run: uni import <source>");
+          fatal("No plugins imported yet. Run: aib import <source>");
         }
 
         // Show list and confirm
@@ -668,7 +684,7 @@ Examples:
   );
 
 // ---------------------------------------------------------------------------
-// uni doctor
+// aib doctor
 // ---------------------------------------------------------------------------
 
 program
@@ -723,7 +739,7 @@ program
         log(chalk.dim(`  registry.json ${regCount} plugin${regCount !== 1 ? "s" : ""} registered`));
       } else {
         warn(`Data directory not found: ${chalk.dim(dataDir)}`);
-        log(chalk.dim(`  It will be created on first 'uni import' or 'uni sync'.`));
+        log(chalk.dim(`  It will be created on first 'aib import' or 'aib sync'.`));
       }
       blank();
 
@@ -759,7 +775,7 @@ program
             }
           } else {
             fail(
-              `${chalk.bold(reg.name)} — not yet cloned (run 'uni sync' or 'uni registry update ${reg.name}')`
+              `${chalk.bold(reg.name)} — not yet cloned (run 'aib sync' or 'aib registry update ${reg.name}')`
             );
           }
         }
@@ -779,7 +795,7 @@ program
         }
       } else {
         log(chalk.dim("No pluginfile.yaml in current directory."));
-        log(chalk.dim("Run 'uni sync --init' to create one."));
+        log(chalk.dim("Run 'aib sync --init' to create one."));
       }
       blank();
 
@@ -794,7 +810,7 @@ program
   );
 
 // ---------------------------------------------------------------------------
-// uni clean [--all] [--plugin <name>]
+// aib clean [--all] [--plugin <name>]
 // ---------------------------------------------------------------------------
 
 program
@@ -806,9 +822,9 @@ program
     "after",
     `
 Examples:
-  uni clean                      Remove sources/ (keeps dist/ and registry)
-  uni clean --all                Remove everything under ~/.ai-plugin-bridge/
-  uni clean --plugin code-review Remove a specific plugin completely
+  aib clean                      Remove sources/ (keeps dist/ and registry)
+  aib clean --all                Remove everything under ~/.ai-plugin-bridge/
+  aib clean --plugin code-review Remove a specific plugin completely
 `
   )
   .action(
@@ -816,7 +832,7 @@ Examples:
       if (opts.all) {
         header("Clean everything");
         warn(`This will remove all data under ${chalk.dim(UNI_HOME)}.`);
-        warn(`You will need to re-run 'uni import' or 'uni sync' afterwards.`);
+        warn(`You will need to re-run 'aib import' or 'aib sync' afterwards.`);
         const proceed = await confirm("Remove everything?", false);
         if (!proceed) {
           log("Aborted.");
@@ -838,7 +854,7 @@ Examples:
 
         const registry = loadRegistry(UNI_HOME);
         if (!registry[name]) {
-          fatal(`Plugin "${name}" not found in registry. Run 'uni list' to see imported plugins.`);
+          fatal(`Plugin "${name}" not found in registry. Run 'aib list' to see imported plugins.`);
         }
 
         // Uninstall from tools and remove dist
@@ -897,13 +913,13 @@ Examples:
 
       rmSync(sourcesDir, { recursive: true, force: true });
       ok(`Removed sources/ (freed ~${formatSize(size)})`);
-      log(chalk.dim("Re-run 'uni sync --from-source' to re-clone when needed."));
+      log(chalk.dim("Re-run 'aib sync --from-source' to re-clone when needed."));
       blank();
     })
   );
 
 // ---------------------------------------------------------------------------
-// uni completions <shell>
+// aib completions <shell>
 // ---------------------------------------------------------------------------
 
 program
@@ -914,9 +930,9 @@ program
     "after",
     `
 Examples:
-  uni completions bash >> ~/.bashrc
-  uni completions zsh >> ~/.zshrc
-  uni completions fish > ~/.config/fish/completions/uni.fish
+  aib completions bash >> ~/.bashrc
+  aib completions zsh >> ~/.zshrc
+  aib completions fish > ~/.config/fish/completions/aib.fish
 `
   )
   .action(
@@ -971,6 +987,47 @@ function isToolAvailable(tool: ToolId): boolean {
     return true;
   } catch {
     return false;
+  }
+}
+
+async function removePlugin(
+  name: string,
+  targets: ToolId[],
+  distDir: string,
+  dryRun: boolean
+): Promise<void> {
+  log(chalk.bold(name));
+
+  for (const tool of targets) {
+    const pluginDir = join(distDir, tool, name);
+    if (!existsSync(pluginDir)) {
+      log(chalk.dim(`  ${tool}: not installed`));
+      continue;
+    }
+
+    if (dryRun) {
+      log(`  ${tool}: ${chalk.dim(uninstallCommand(tool, name))}`);
+      log(chalk.dim(`    rm -rf ${pluginDir}`));
+      continue;
+    }
+
+    try {
+      execSync(uninstallCommand(tool, name), { stdio: "pipe" });
+    } catch {
+      // Tool may not have it installed — continue to clean up dist files
+    }
+
+    try {
+      rmSync(pluginDir, { recursive: true, force: true });
+      ok(`  ${tool}: removed`);
+    } catch (err) {
+      fail(`  ${tool}: failed — ${errorMessage(err)}`);
+    }
+  }
+
+  if (!dryRun && ALL_TOOLS.every((t) => targets.includes(t))) {
+    deleteRegistryEntry(UNI_HOME, name);
+    ok(`  registry: entry removed`);
   }
 }
 
@@ -1075,7 +1132,7 @@ function generatePluginfile(): void {
   const registry = loadRegistry(UNI_HOME);
   const entries = Object.entries(registry);
 
-  let yaml = `# ai-plugin-bridge pluginfile — run "uni sync" to install all plugins\n\n`;
+  let yaml = `# ai-plugin-bridge pluginfile — run "aib sync" to install all plugins\n\n`;
   yaml += `# registries:\n#   - name: community\n#     url: https://github.com/owner/ai-plugin-bridge-registry\n#     priority: 1\n\n`;
   yaml += `targets:\n  - claude-code\n  - gemini-cli\n  - copilot-cli\n\nplugins:\n`;
 
@@ -1101,12 +1158,12 @@ function generatePluginfile(): void {
 
   writeFileSync(outPath, yaml);
   ok("Created pluginfile.yaml");
-  log(chalk.dim("Edit it to configure your plugins, then run: uni sync"));
+  log(chalk.dim("Edit it to configure your plugins, then run: aib sync"));
   blank();
 }
 
 // ---------------------------------------------------------------------------
-// uni registry list | add | remove | update | search
+// aib registry list | add | remove | update | search
 // ---------------------------------------------------------------------------
 
 const registryCmd = program
@@ -1135,7 +1192,7 @@ registryCmd
         header("Configured registries");
         blank();
         log("No registries configured.");
-        log(chalk.dim("Use 'uni registry add <name> <url>' or add a 'registries' section to pluginfile.yaml."));
+        log(chalk.dim("Use 'aib registry add <name> <url>' or add a 'registries' section to pluginfile.yaml."));
         blank();
         return;
       }
@@ -1183,8 +1240,8 @@ registryCmd
     "after",
     `
 Examples:
-  uni registry add company https://github.com/acme/plugins --priority 1
-  uni registry add community git@github.com:george/ai-plugin-bridge-registry.git
+  aib registry add company https://github.com/acme/plugins --priority 1
+  aib registry add community git@github.com:george/ai-plugin-bridge-registry.git
 `
   )
   .action(
@@ -1202,7 +1259,7 @@ Examples:
         saveGlobalConfig(UNI_HOME, globalConfig);
         ok(`Added registry "${name}" to global config`);
       }
-      log(chalk.dim("Run 'uni registry update' to clone it, or 'uni sync' to use it."));
+      log(chalk.dim("Run 'aib registry update' to clone it, or 'aib sync' to use it."));
       blank();
     })
   );
@@ -1216,7 +1273,7 @@ registryCmd
       const globalConfig = loadGlobalConfig(UNI_HOME);
       const idx = globalConfig.registries.findIndex((r) => r.name === name);
       if (idx === -1) {
-        fatal(`Registry "${name}" not found in global config. Run 'uni registry list' to see configured registries.`);
+        fatal(`Registry "${name}" not found in global config. Run 'aib registry list' to see configured registries.`);
       }
 
       const proceed = await confirm(
@@ -1231,7 +1288,7 @@ registryCmd
       globalConfig.registries.splice(idx, 1);
       saveGlobalConfig(UNI_HOME, globalConfig);
       ok(`Removed registry "${name}" from global config`);
-      log(chalk.dim("The local clone under ~/.ai-plugin-bridge/registries/ is preserved. Run 'uni clean' to remove it."));
+      log(chalk.dim("The local clone under ~/.ai-plugin-bridge/registries/ is preserved. Run 'aib clean' to remove it."));
       blank();
     })
   );
@@ -1262,8 +1319,8 @@ registryCmd
       if (targets.length === 0) {
         fatal(
           name
-            ? `Registry "${name}" not found. Run 'uni registry list' to see configured registries.`
-            : "No registries configured. Run 'uni registry add <name> <url>'."
+            ? `Registry "${name}" not found. Run 'aib registry list' to see configured registries.`
+            : "No registries configured. Run 'aib registry add <name> <url>'."
         );
       }
 
@@ -1290,8 +1347,8 @@ registryCmd
     "after",
     `
 Examples:
-  uni registry search code-review
-  uni registry search mcp
+  aib registry search code-review
+  aib registry search mcp
 `
   )
   .action(
@@ -1310,7 +1367,7 @@ Examples:
       const registries = mergeRegistries(globalConfig.registries, pfRegistries);
 
       if (registries.length === 0) {
-        log("No registries configured. Run 'uni registry add <name> <url>'.");
+        log("No registries configured. Run 'aib registry add <name> <url>'.");
         return;
       }
 
@@ -1358,15 +1415,15 @@ const COMPLETION_DEFS: Record<string, string> = {
 };
 
 function bashCompletion(commands: string[]): string {
-  return `# uni bash completion
-# Add to ~/.bashrc: eval "$(uni completions bash)"
+  return `# aib bash completion
+# Add to ~/.bashrc: eval "$(aib completions bash)"
 
-_uni_completion() {
+_aib_completion() {
   local cur="\${COMP_WORDS[COMP_CWORD]}"
   local commands="${commands.join(" ")}"
   COMPREPLY=($(compgen -W "$commands" -- "$cur"))
 }
-complete -F _uni_completion uni`;
+complete -F _aib_completion aib`;
 }
 
 function zshCompletion(commands: string[]): string {
@@ -1374,16 +1431,16 @@ function zshCompletion(commands: string[]): string {
     .map((c) => `    '${c}:${COMPLETION_DEFS[c] ?? c}'`)
     .join("\n");
 
-  return `#compdef uni
-# uni zsh completion
-# Add to ~/.zshrc: eval "$(uni completions zsh)"
+  return `#compdef aib
+# aib zsh completion
+# Add to ~/.zshrc: eval "$(aib completions zsh)"
 
 _uni() {
   local -a commands
   commands=(
 ${lines}
   )
-  _describe 'uni commands' commands
+  _describe 'aib commands' commands
 }
 _uni "$@"`;
 }
@@ -1392,14 +1449,14 @@ function fishCompletion(commands: string[]): string {
   const lines = commands
     .map(
       (c) =>
-        `complete -c uni -n '__fish_use_subcommand' -a ${c} -d '${COMPLETION_DEFS[c] ?? c}'`
+        `complete -c aib -n '__fish_use_subcommand' -a ${c} -d '${COMPLETION_DEFS[c] ?? c}'`
     )
     .join("\n");
 
-  return `# uni fish completion
-# Install: uni completions fish > ~/.config/fish/completions/uni.fish
+  return `# aib fish completion
+# Install: aib completions fish > ~/.config/fish/completions/aib.fish
 
-complete -c uni -f
+complete -c aib -f
 ${lines}`;
 }
 
