@@ -24,6 +24,12 @@ export interface McpServerConfig {
   args: string[];
   cwd?: string;
   env?: Record<string, string>;
+  /** HTTP/streamable-HTTP URL for remote MCP servers (no local process). */
+  httpUrl?: string;
+  /** HTTP headers (e.g. auth) — only relevant when httpUrl is set. */
+  headers?: Record<string, string>;
+  /** Timeout in milliseconds — only relevant when httpUrl is set. */
+  timeout?: number;
 }
 
 export interface Skill {

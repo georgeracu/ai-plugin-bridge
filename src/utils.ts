@@ -230,16 +230,31 @@ export function parseMcpJsonFile(pluginDir: string): McpServerConfig[] {
 
   const servers = raw.mcpServers as Record<
     string,
-    { command: string; args?: string[]; cwd?: string; env?: Record<string, string> }
+    {
+      command?: string;
+      args?: string[];
+      cwd?: string;
+      env?: Record<string, string>;
+      url?: string;
+      httpUrl?: string;
+      headers?: Record<string, string>;
+      timeout?: number;
+    }
   >;
 
-  return Object.entries(servers).map(([name, config]) => ({
-    name,
-    command: config.command,
-    args: config.args ?? [],
-    cwd: config.cwd,
-    env: config.env,
-  }));
+  return Object.entries(servers).map(([name, config]) => {
+    const httpUrl = config.url ?? config.httpUrl;
+    return {
+      name,
+      command: config.command,
+      args: config.args ?? [],
+      cwd: config.cwd,
+      env: config.env,
+      ...(httpUrl && { httpUrl }),
+      ...(config.headers && { headers: config.headers }),
+      ...(config.timeout != null && { timeout: config.timeout }),
+    };
+  });
 }
 
 /**

@@ -76,14 +76,23 @@ function parseMcpServers(
 
   const raw = manifest.mcpServers as Record<
     string,
-    { command?: string; args?: string[]; cwd?: string; env?: Record<string, string> }
+    {
+      command?: string;
+      args?: string[];
+      cwd?: string;
+      env?: Record<string, string>;
+      httpUrl?: string;
+      headers?: Record<string, string>;
+      timeout?: number;
+    }
   >;
 
   const servers: McpServerConfig[] = [];
   const warnings: string[] = [];
 
   for (const [name, config] of Object.entries(raw)) {
-    if (!config.command) {
+    const isHttp = !!config.httpUrl;
+    if (!config.command && !isHttp) {
       warnings.push(
         `MCP server "${name}" has no command field — it cannot be started by any target tool`
       );
@@ -98,6 +107,9 @@ function parseMcpServers(
       ),
       cwd: config.cwd?.replace(/\$\{extensionPath\}/g, "{{PLUGIN_DIR}}"),
       env: config.env,
+      ...(config.httpUrl && { httpUrl: config.httpUrl }),
+      ...(config.headers && { headers: config.headers }),
+      ...(config.timeout != null && { timeout: config.timeout }),
     });
   }
 

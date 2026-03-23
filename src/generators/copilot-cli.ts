@@ -30,29 +30,45 @@ export function generateCopilotCliPlugin(
   if (plugin.mcpServers.length > 0) {
     const mcpConfig: Record<string, unknown> = {};
     for (const server of plugin.mcpServers) {
-      mcpConfig[server.name] = {
-        ...(server.command && { command: server.command }),
-        args: server.args.map((a) =>
-          a.replace(/\{\{PLUGIN_DIR\}\}/g, "${PLUGIN_DIR}")
-        ),
-        ...(server.cwd && {
-          cwd: server.cwd.replace(/\{\{PLUGIN_DIR\}\}/g, "${PLUGIN_DIR}"),
-        }),
-        ...(server.env && { env: server.env }),
-      };
-      if (!server.command) {
-        components.push({
-          type: "mcp-server",
-          name: server.name,
-          status: "partial",
-          reason: "No command field — MCP server cannot be started",
-        });
-      } else {
+      if (server.httpUrl) {
+        // Remote HTTP MCP server
+        mcpConfig[server.name] = {
+          url: server.httpUrl,
+          ...(server.headers && { headers: server.headers }),
+          ...(server.timeout != null && { timeout: server.timeout }),
+          ...(server.env && { env: server.env }),
+        };
         components.push({
           type: "mcp-server",
           name: server.name,
           status: "translated",
         });
+      } else {
+        // Local stdio MCP server
+        mcpConfig[server.name] = {
+          ...(server.command && { command: server.command }),
+          args: server.args.map((a) =>
+            a.replace(/\{\{PLUGIN_DIR\}\}/g, "${PLUGIN_DIR}")
+          ),
+          ...(server.cwd && {
+            cwd: server.cwd.replace(/\{\{PLUGIN_DIR\}\}/g, "${PLUGIN_DIR}"),
+          }),
+          ...(server.env && { env: server.env }),
+        };
+        if (!server.command) {
+          components.push({
+            type: "mcp-server",
+            name: server.name,
+            status: "partial",
+            reason: "No command field — MCP server cannot be started",
+          });
+        } else {
+          components.push({
+            type: "mcp-server",
+            name: server.name,
+            status: "translated",
+          });
+        }
       }
     }
     writeFileSync(
