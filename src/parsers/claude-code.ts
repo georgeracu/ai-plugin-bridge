@@ -102,7 +102,7 @@ function parseAgents(pluginDir: string): Agent[] {
     if (!content) continue;
 
     const { frontmatter } = parseFrontmatter(content);
-    agents.push({ filename: entry, content, frontmatter });
+    agents.push({ filename: entry, content, frontmatter, inferredSource: "claude-code" });
   }
   return agents;
 }

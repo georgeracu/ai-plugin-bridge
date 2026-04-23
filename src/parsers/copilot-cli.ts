@@ -126,7 +126,7 @@ function parseAgents(
       if (!content) continue;
 
       const { frontmatter } = parseFrontmatter(content);
-      agents.push({ filename: entry, content, frontmatter });
+      agents.push({ filename: entry, content, frontmatter, inferredSource: "copilot-cli" });
     }
   }
   return agents;

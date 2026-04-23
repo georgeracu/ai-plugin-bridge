@@ -120,6 +120,11 @@ describe("parseClaudeCodePlugin", () => {
     assert.equal(plugin.contextFile.originalFilename, "CLAUDE.md");
     assert.ok(plugin.contextFile.content.includes("code review"));
   });
+
+  test("claude-code parser sets inferredSource on agents", () => {
+    const plugin = parseClaudeCodePlugin(join(FIXTURES, "claude-code-full"), SOURCE);
+    assert.equal(plugin.agents[0].inferredSource, "claude-code");
+  });
 });
 
 // ---------------------------------------------------------------------------
@@ -157,5 +162,10 @@ describe("parseCopilotCliPlugin", () => {
   test("has no commands (copilot-cli uses agents instead)", () => {
     const plugin = parseCopilotCliPlugin(join(FIXTURES, "copilot-cli-full"), SOURCE);
     assert.equal(plugin.commands.length, 0);
+  });
+
+  test("copilot-cli parser sets inferredSource on agents", () => {
+    const plugin = parseCopilotCliPlugin(join(FIXTURES, "copilot-cli-full"), SOURCE);
+    assert.equal(plugin.agents[0].inferredSource, "copilot-cli");
   });
 });

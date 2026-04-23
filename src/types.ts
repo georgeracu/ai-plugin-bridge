@@ -48,6 +48,8 @@ export interface Agent {
   content: string;
   /** Parsed frontmatter */
   frontmatter: Record<string, unknown>;
+  /** Inferred source tool, set by parser or scanner */
+  inferredSource?: "claude-code" | "copilot-cli" | "ambiguous";
 }
 
 export interface Command {
