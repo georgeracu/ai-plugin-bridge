@@ -87,12 +87,22 @@ export async function importAgents(opts: AgentImportOptions): Promise<void> {
   ok("Agent import complete");
 }
 
+const VALID_AGENT_TARGETS = new Set(["claude-code", "copilot-cli"]);
+
 function resolveTargets(to?: string): Array<"claude-code" | "copilot-cli"> {
-  if (to === "claude-code") return ["claude-code"];
-  if (to === "copilot-cli") return ["copilot-cli"];
+  if (!to) return ["claude-code", "copilot-cli"];
   if (to === "all") return ["claude-code", "copilot-cli"];
-  // Default: both
-  return ["claude-code", "copilot-cli"];
+
+  // Support comma-separated values (e.g. from --only forwarding)
+  const parts = to.split(",").map((s) => s.trim());
+  const valid = parts.filter((p) => VALID_AGENT_TARGETS.has(p)) as Array<"claude-code" | "copilot-cli">;
+  const invalid = parts.filter((p) => !VALID_AGENT_TARGETS.has(p) && p !== "all");
+
+  for (const t of invalid) {
+    warn(`Skipping unsupported agent target: ${t}`);
+  }
+
+  return valid.length > 0 ? valid : ["claude-code", "copilot-cli"];
 }
 
 function getInstallDir(
