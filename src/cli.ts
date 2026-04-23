@@ -18,6 +18,9 @@ import { translate } from "./translator.js";
 import { loadPluginfile, validatePluginfile } from "./pluginfile.js";
 import { sync } from "./sync.js";
 import { publish } from "./publish.js";
+import { importAgents } from "./agent-import.js";
+import { scanForAgents } from "./agent-scanner.js";
+import { detectSourceTool } from "./detector.js";
 import { loadRegistryIndex } from "./registry-index.js";
 import {
   updateClaudeMarketplace,
@@ -198,6 +201,27 @@ Examples:
             process.exit(1);
           }
         }
+      }
+
+      // Check if source has a plugin manifest; if not, try agent fallback
+      const detection = detectSourceTool(pluginDir);
+      if (!detection) {
+        const agents = scanForAgents(pluginDir);
+        if (agents.length > 0) {
+          step(`No plugin manifest found, but detected ${agents.length} agent(s)`);
+          const proceed = await confirm("Import as standalone agents?");
+          if (proceed) {
+            await importAgents({
+              source,
+              subdir,
+              ref,
+              to: targets ? targets.join(",") : undefined,
+              all: opts.all,
+            });
+            return;
+          }
+        }
+        fatal(`Could not detect source tool in ${pluginDir}`);
       }
 
       const distDir = join(UNI_HOME, "dist");
@@ -950,6 +974,7 @@ Examples:
         "doctor",
         "clean",
         "completions",
+        "agent",
       ];
 
       switch (shell) {
@@ -1459,6 +1484,35 @@ function fishCompletion(commands: string[]): string {
 complete -c aib -f
 ${lines}`;
 }
+
+// ---------------------------------------------------------------------------
+// agent — standalone agent management
+// ---------------------------------------------------------------------------
+
+const agentCmd = program
+  .command("agent")
+  .description("Manage standalone agents");
+
+agentCmd
+  .command("import <source>")
+  .description("Import agents from a git repository")
+  .option("--subdir <path>", "Only scan a subdirectory of the repo")
+  .option("--ref <ref>", "Git reference (branch, tag, SHA) to checkout")
+  .option("--to <tool>", "Target tool: claude-code, copilot-cli, or all")
+  .option("--all", "Import all detected agents (skip selection)")
+  .option("--project <path>", "Project directory for Copilot agent install")
+  .action(
+    action(async (source: string, opts) => {
+      await importAgents({
+        source,
+        subdir: opts.subdir,
+        ref: opts.ref,
+        to: opts.to,
+        all: opts.all,
+        project: opts.project,
+      });
+    })
+  );
 
 // ---------------------------------------------------------------------------
 // Parse
