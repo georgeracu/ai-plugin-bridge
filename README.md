@@ -8,7 +8,7 @@ You found a great plugin for Gemini CLI, but you also use Claude Code and GitHub
 
 ## How it works
 
-```
+```plain
 GitHub repo
     |
     v
@@ -87,7 +87,7 @@ aib sync --init       # generate a pluginfile from your existing imports
 |--------------|-------------|----------------------------------------------------|
 | MCP servers  | High        | Protocol-level portable, only manifest differs     |
 | Skills       | High        | SKILL.md format shared across all three tools      |
-| Agents       | Medium      | Converted to skills for Gemini CLI                 |
+| Agents       | Medium      | Semantic translation between Claude ↔ Copilot; converted to skills for Gemini CLI |
 | Commands     | Medium      | Converted to agents for Copilot CLI                |
 | Context      | High        | CLAUDE.md <> GEMINI.md <> .copilot-instructions.md |
 | Hooks        | Low         | Tool-specific; only passed through for native tool |
@@ -96,7 +96,8 @@ aib sync --init       # generate a pluginfile from your existing imports
 
 | Command | Description |
 |---------|-------------|
-| `aib import <repo>` | Import a plugin from a GitHub repo and translate for all tools |
+| `aib import <repo>` | Import a plugin from a GitHub repo and translate for all tools (falls back to agent import if no plugin manifest is found) |
+| `aib agent import <repo>` | Import standalone agents from a git repo into native tool directories |
 | `aib sync` | Sync plugins defined in pluginfile.yaml |
 | `aib install <name>` | Install a translated plugin into target CLI tools |
 | `aib remove <name>` | Uninstall a plugin and delete translated files |
@@ -114,6 +115,45 @@ aib sync --init       # generate a pluginfile from your existing imports
 | `aib completions <shell>` | Output shell completion script (bash, zsh, fish) |
 
 Common flags: `--only <tools>` (comma-separated), `--dry-run`, `--ref <ref>`, `--subdir <path>`, `--yes` / `-y`.
+
+## Importing standalone agents
+
+Not every repo is a full plugin. Some repos contain just agent definitions — markdown files with YAML frontmatter. ai-plugin-bridge can detect and import these directly into your tools' native agent directories.
+
+```bash
+# Scan a repo for agents, select which to import interactively
+aib agent import someone/cool-agents
+
+# Import all agents from a subdirectory, targeting Claude Code only
+aib agent import someone/cool-agents --subdir agents/ --all --to claude-code
+
+# Import from a specific branch
+aib agent import someone/cool-agents --ref develop
+```
+
+Agents are installed directly to:
+- **Claude Code:** `~/.claude/agents/` (available globally)
+- **Copilot CLI:** `.github/agents/` in the current project (use `--project` to override)
+
+### Semantic translation
+
+When importing agents written for a different tool, ai-plugin-bridge translates the frontmatter semantically:
+
+- **Claude → Copilot:** Claude-specific fields (`tools`, `model`, `hooks`, `mcpServers`, etc.) are preserved as YAML comments (`# claude-original-tools: Read, Grep`) so they survive a round-trip back.
+- **Copilot → Claude:** `mcp-servers` is renamed to `mcpServers`. Previously preserved `# claude-original-*` comments are restored to real frontmatter fields.
+- **Ambiguous agents** (only `name` + `description`) pass through unchanged.
+
+The same translation also applies automatically when importing full plugins — agents within plugins are no longer copied verbatim but translated between formats.
+
+### Fallback from plugin import
+
+If `aib import` can't find a plugin manifest in a repo but detects agent files, it offers to import them as standalone agents:
+
+```
+$ aib import someone/agent-collection
+  → No plugin manifest found, but detected 3 agent(s)
+  Import as standalone agents? [y/N]
+```
 
 ## Using registries
 

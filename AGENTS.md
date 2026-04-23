@@ -14,7 +14,7 @@ npm run build     # compile TypeScript to dist/
 node dist/cli.js  # run the CLI
 ```
 
-There are no tests yet. Validate changes by running the CLI against the four test plugins listed below.
+Tests use `node:test` and `assert/strict`. Run `npm test` (builds first, then runs `dist-test/*.test.js`). Tests import from `../dist/`, not `../src/`.
 
 ## Architecture
 
@@ -33,6 +33,10 @@ Source repo → Detector → Parser → UniversalPlugin (IR) → Generator (×3)
 - **`src/pluginfile.ts`** — parses and validates `pluginfile.yaml`
 - **`src/sync.ts`** — orchestrates the `aib sync` workflow: registry diff, registry-first fetch, source fallback, install
 - **`src/registry-client.ts`** — clones/pulls a remote registry repo and copies pre-translated plugins to local dist
+- **`src/agent-scanner.ts`** — recursively scans a directory for agent `.md` files; infers source tool (Claude/Copilot/ambiguous) from frontmatter keys
+- **`src/agent-translator.ts`** — semantic translation of agent frontmatter between Claude Code ↔ Copilot CLI; preserves untranslatable fields as YAML comments for round-trip fidelity
+- **`src/agent-import.ts`** — orchestrates standalone agent import: clone → scan → select → translate → install to native directories
+- **`src/select.ts`** — interactive multi-select helper (numbered list, comma-separated/range input via readline)
 
 ## Key concepts
 
@@ -46,10 +50,24 @@ Every source format is parsed into this model (`types.ts`): `mcpServers`, `skill
 | ----------- | -------------------------------------------------------------- |
 | MCP servers | Config restructuring only — protocol is universal              |
 | Skills      | SKILL.md format shared; minor frontmatter tweaks               |
-| Agents      | Agents → skills for Gemini CLI (no native agents concept)      |
+| Agents      | Semantic translation between Claude ↔ Copilot; agents → skills for Gemini CLI |
 | Commands    | Commands → agents for Copilot CLI (no slash commands)          |
 | Context     | Rename: CLAUDE.md ↔ GEMINI.md ↔ .copilot-instructions.md     |
 | Hooks       | Pass through for native tool only; skip with report for others |
+
+### Standalone agent import
+
+`aib agent import <repo>` scans a git repo for agent `.md` files (detected by `name` + `description` frontmatter or `.agent.md` extension) and installs them directly to native tool directories — bypassing the full plugin pipeline. The source tool is inferred from frontmatter keys:
+
+- Claude-specific keys (`tools`, `model`, `hooks`, `mcpServers`, etc.) → Claude Code
+- `mcp-servers` (hyphenated) → Copilot CLI
+- Only `name` + `description` → ambiguous (no translation needed)
+
+Install targets: `~/.claude/agents/` (Claude, global) and `{cwd}/.github/agents/` (Copilot, per-project). The existing `aib import` command falls back to agent scanning when no plugin manifest is found.
+
+### Agent translation (Claude ↔ Copilot)
+
+When translating Claude → Copilot, Claude-only frontmatter fields are moved to YAML comments (`# claude-original-tools: Read, Grep`). When translating back (Copilot → Claude), those comments are restored to real frontmatter keys. This enables lossless round-trips. Complex values use JSON-in-comments format.
 
 ### Path variable normalisation
 
