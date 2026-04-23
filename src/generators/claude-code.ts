@@ -1,8 +1,9 @@
 import { join, resolve } from "node:path";
 import { mkdirSync, writeFileSync, readdirSync, existsSync } from "node:fs";
 import { execSync } from "node:child_process";
-import { readJsonFile } from "../utils.js";
+import { readJsonFile, parseFrontmatter } from "../utils.js";
 import { writeExtraFiles, writeTranslationReport } from "./shared.js";
+import { translateAgent } from "../agent-translator.js";
 import type {
   UniversalPlugin,
   TranslationReport,
@@ -85,9 +86,27 @@ export function generateClaudeCodePlugin(
   if (plugin.agents.length > 0) {
     const agentsDir = join(outputDir, "agents");
     mkdirSync(agentsDir, { recursive: true });
-    for (const agent of plugin.agents) {
-      writeFileSync(join(agentsDir, agent.filename), agent.content);
-      components.push({ type: "agent", name: agent.filename, status: "translated" });
+    for (const a of plugin.agents) {
+      const scanned = {
+        path: a.filename,
+        filename: a.filename,
+        content: a.content,
+        frontmatter: a.frontmatter,
+        body: parseFrontmatter(a.content).body,
+        inferredSource: a.inferredSource ?? ("ambiguous" as const),
+      };
+      const translated = translateAgent(scanned, "claude-code");
+      writeFileSync(join(agentsDir, translated.filename), translated.content);
+      if (translated.warnings.length === 0) {
+        components.push({ type: "agent", name: translated.filename, status: "translated" });
+      } else {
+        components.push({
+          type: "agent",
+          name: translated.filename,
+          status: "partial",
+          reason: translated.warnings.join("; "),
+        });
+      }
     }
   }
 

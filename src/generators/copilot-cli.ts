@@ -1,6 +1,8 @@
 import { join } from "node:path";
 import { mkdirSync, writeFileSync } from "node:fs";
 import { writeExtraFiles, writeTranslationReport } from "./shared.js";
+import { parseFrontmatter } from "../utils.js";
+import { translateAgent } from "../agent-translator.js";
 import type {
   UniversalPlugin,
   TranslationReport,
@@ -93,18 +95,32 @@ export function generateCopilotCliPlugin(
   if (plugin.agents.length > 0) {
     const agentsDir = join(outputDir, "agents");
     mkdirSync(agentsDir, { recursive: true });
-    for (const agent of plugin.agents) {
+    for (const a of plugin.agents) {
+      const scanned = {
+        path: a.filename,
+        filename: a.filename,
+        content: a.content,
+        frontmatter: a.frontmatter,
+        body: parseFrontmatter(a.content).body,
+        inferredSource: a.inferredSource ?? ("ambiguous" as const),
+      };
+      const translated = translateAgent(scanned, "copilot-cli");
       // Ensure filename ends with .agent.md for Copilot CLI
-      const filename = agent.filename.endsWith(".agent.md")
-        ? agent.filename
-        : agent.filename.replace(/\.md$/, ".agent.md");
-
-      writeFileSync(join(agentsDir, filename), agent.content);
-      components.push({
-        type: "agent",
-        name: filename,
-        status: "translated",
-      });
+      let outFilename = translated.filename;
+      if (!outFilename.endsWith(".agent.md")) {
+        outFilename = outFilename.replace(/\.md$/, ".agent.md");
+      }
+      writeFileSync(join(agentsDir, outFilename), translated.content);
+      if (translated.warnings.length === 0) {
+        components.push({ type: "agent", name: outFilename, status: "translated" });
+      } else {
+        components.push({
+          type: "agent",
+          name: outFilename,
+          status: "partial",
+          reason: translated.warnings.join("; "),
+        });
+      }
     }
     manifest.agents = "agents/";
   }

@@ -126,6 +126,23 @@ describe("generateClaudeCodePlugin", () => {
     const server = mcp.mcpServers["hosted"] as Record<string, unknown>;
     assert.equal(Object.prototype.hasOwnProperty.call(server, "command"), false);
   });
+
+  test("translates copilot-cli agent when generating claude-code output", () => {
+    const tmpDir = makeTmpDir();
+    const plugin = makePlugin({
+      agents: [{
+        filename: "helper.md",
+        content: '---\nname: helper\ndescription: Helps\nmcp-servers: playwright\n---\n\nYou help.',
+        frontmatter: { name: "helper", description: "Helps", "mcp-servers": "playwright" },
+        inferredSource: "copilot-cli",
+      }],
+    });
+    generateClaudeCodePlugin(plugin, tmpDir);
+
+    const agentContent = readFileSync(join(tmpDir, "agents", "helper.md"), "utf-8");
+    assert.ok(agentContent.includes("mcpServers:"));
+    assert.ok(!agentContent.includes("mcp-servers:"));
+  });
 });
 
 // ---------------------------------------------------------------------------
@@ -227,5 +244,23 @@ describe("generateCopilotCliPlugin", () => {
     generateCopilotCliPlugin(makePlugin(), out);
     const report = readJson(join(out, "translation-report.json")) as { targetTool: string };
     assert.equal(report.targetTool, "copilot-cli");
+  });
+
+  test("translates claude-code agent when generating copilot-cli output", () => {
+    const tmpDir = makeTmpDir();
+    const plugin = makePlugin({
+      agents: [{
+        filename: "reviewer.md",
+        content: '---\nname: reviewer\ndescription: Reviews\ntools: Read, Grep\nmodel: sonnet\n---\n\nYou review.',
+        frontmatter: { name: "reviewer", description: "Reviews", tools: "Read, Grep", model: "sonnet" },
+        inferredSource: "claude-code",
+      }],
+    });
+    generateCopilotCliPlugin(plugin, tmpDir);
+
+    // Copilot generator renames .md to .agent.md
+    const agentContent = readFileSync(join(tmpDir, "agents", "reviewer.agent.md"), "utf-8");
+    assert.ok(agentContent.includes("# claude-original-tools:"));
+    assert.ok(agentContent.includes("# claude-original-model: sonnet"));
   });
 });
