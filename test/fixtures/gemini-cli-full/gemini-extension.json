@@ -1,0 +1,12 @@
+{
+  "name": "code-review",
+  "version": "1.2.0",
+  "description": "AI-powered code review extension",
+  "mcpServers": {
+    "review-server": {
+      "command": "node",
+      "args": ["${extensionPath}/server.js", "--port", "3000"],
+      "env": { "DEBUG": "1" }
+    }
+  }
+}

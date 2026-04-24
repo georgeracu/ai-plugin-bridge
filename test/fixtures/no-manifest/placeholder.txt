@@ -1,0 +1,1 @@
+This directory has no plugin manifest — used to test null detection.

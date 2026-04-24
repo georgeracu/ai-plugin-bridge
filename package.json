@@ -1,0 +1,58 @@
+{
+  "name": "ai-plugin-bridge",
+  "version": "0.1.0",
+  "description": "Universal plugin translator for AI coding CLI tools",
+  "type": "module",
+  "bin": {
+    "aib": "./dist/cli.js"
+  },
+  "files": [
+    "dist/",
+    "README.md",
+    "LICENSE",
+    "CHANGELOG.md"
+  ],
+  "engines": {
+    "node": ">=22"
+  },
+  "scripts": {
+    "build": "tsc",
+    "postbuild": "chmod +x dist/cli.js",
+    "build:test": "tsc -p tsconfig.test.json",
+    "dev": "tsc --watch",
+    "start": "node dist/cli.js",
+    "test": "npm run build && npm run build:test && node --test dist-test/*.test.js",
+    "prepublishOnly": "npm run build"
+  },
+  "keywords": [
+    "cli",
+    "plugin",
+    "claude-code",
+    "gemini-cli",
+    "copilot-cli",
+    "mcp",
+    "ai-tools"
+  ],
+  "author": "George Racu <racu.george@gmail.com>",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/georgeracu/ai-plugin-bridge.git"
+  },
+  "bugs": {
+    "url": "https://github.com/georgeracu/ai-plugin-bridge/issues"
+  },
+  "homepage": "https://github.com/georgeracu/ai-plugin-bridge#readme",
+  "dependencies": {
+    "yaml": "^2.7.0",
+    "commander": "^13.1.0",
+    "chalk": "^5.4.1"
+  },
+  "devDependencies": {
+    "typescript": "^5.7.0",
+    "@types/node": "^22.0.0",
+    "semantic-release": "^24.0.0",
+    "@semantic-release/changelog": "^6.0.0",
+    "@semantic-release/git": "^10.0.0"
+  }
+}

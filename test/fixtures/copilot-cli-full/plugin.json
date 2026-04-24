@@ -1,0 +1,6 @@
+{
+  "name": "copilot-plugin",
+  "version": "1.5.0",
+  "description": "A Copilot CLI plugin for testing",
+  "agents": "agents/"
+}

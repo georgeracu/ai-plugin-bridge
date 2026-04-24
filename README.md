@@ -1,109 +1,14 @@
-# uni-plugin
+# ai-plugin-bridge
 
-**Universal AI CLI plugin translator — import once, install everywhere.**
+Import once, install everywhere — a universal plugin translator for AI coding CLI tools.
 
-Translates plugins/extensions between Claude Code, Gemini CLI, and GitHub Copilot CLI. Write or discover a plugin in one ecosystem, use it in all three.
+## The problem
 
-## Quick start
-
-```bash
-npm install
-npm run build
-
-# Import a Gemini CLI extension
-node dist/cli.js import gemini-cli-extensions/code-review
-
-# Import a Claude Code plugin from a monorepo subdirectory
-node dist/cli.js import anthropics/claude-code --subdir plugins/ralph-wiggum
-
-# Import a Copilot CLI plugin
-node dist/cli.js import github/awesome-copilot --subdir plugins/software-engineering-team
-
-# See what was translated (and what wasn't)
-node dist/cli.js report code-review
-
-# Install to all three tools at once
-node dist/cli.js install code-review
-
-# Install to specific tools only
-node dist/cli.js install code-review --only claude-code,copilot-cli
-
-# Remove a plugin from all tools
-node dist/cli.js remove code-review
-
-# Remove from a specific tool only
-node dist/cli.js remove code-review --only gemini-cli
-
-# List everything you've imported
-node dist/cli.js list
-```
-
-## Declarative sync with pluginfile.yaml
-
-Define your plugins in a `pluginfile.yaml` and sync them all at once:
-
-```yaml
-# Optional: pre-translated plugin registry
-registry: https://github.com/george/uni-plugin-registry
-
-targets:
-  - claude-code
-  - gemini-cli
-  - copilot-cli
-
-plugins:
-  - name: code-review
-    source: gemini-cli-extensions/code-review
-    ref: main
-
-  - name: jules
-    source: gemini-cli-extensions/jules
-    ref: v0.1.0
-
-  - name: ralph-wiggum
-    source: anthropics/claude-code
-    subdir: plugins/ralph-wiggum
-    ref: main
-    targets:  # per-plugin override
-      - claude-code
-
-  - name: software-engineering-team
-    source: github/awesome-copilot
-    subdir: plugins/software-engineering-team
-    ref: main
-```
-
-Then run:
-
-```bash
-# Sync all plugins (downloads, translates, installs)
-node dist/cli.js sync
-
-# Preview what would happen
-node dist/cli.js sync --dry-run
-
-# Force re-translate from source repos (bypass registry)
-node dist/cli.js sync --from-source
-
-# Use a specific pluginfile
-node dist/cli.js sync --file path/to/pluginfile.yaml
-
-# Generate a starter pluginfile from your existing imports
-node dist/cli.js sync --init
-```
-
-### How sync works
-
-1. **Loads** `pluginfile.yaml` (searches `./pluginfile.yaml`, then `~/.uni-plugin/pluginfile.yaml`).
-2. **Resolves the registry** (if configured) — clones or pulls the registry repo.
-3. **Diffs against local state** — compares each plugin's ref/source against `registry.json` and skips anything already up to date.
-4. **Registry-first strategy** — if a plugin exists pre-translated in the registry, copies it directly (no clone + translate needed).
-5. **Source fallback** — if not in the registry (or `--from-source` is passed), clones from the source repo and runs the full translate pipeline.
-6. **Installs** to each target tool, respecting per-plugin target overrides.
+You found a great plugin for Gemini CLI, but you also use Claude Code and GitHub Copilot CLI. Today you'd have to track down or write an equivalent for each tool separately — if one even exists. ai-plugin-bridge solves this by translating plugins between all three ecosystems automatically.
 
 ## How it works
 
-```
+```plain
 GitHub repo
     |
     v
@@ -126,106 +31,213 @@ GitHub repo
  |  -> Copilot CLI (plugin.json)                |
  +---------------------------------------------+
       v
- ~/.uni-plugin/dist/{tool}/{plugin-name}/
+ ~/.ai-plugin-bridge/dist/{tool}/{plugin-name}/
 ```
 
-## What translates well (v0.1)
-
-| Component    | Portability | Notes                                          |
-|-------------|-------------|------------------------------------------------|
-| MCP servers | High        | Protocol-level portable, only manifest differs |
-| Skills      | High        | SKILL.md format shared across all three tools  |
-| Agents      | Medium      | Converted to skills for Gemini CLI             |
-| Commands    | Medium      | Converted to agents for Copilot CLI            |
-| Context     | High        | CLAUDE.md <> GEMINI.md <> .copilot-instructions.md |
-| Hooks       | Low         | Tool-specific, only passed through for native  |
-
-## How Claude Code installation works
-
-Claude Code uses a marketplace model. uni-plugin manages this automatically:
-
-1. After each `import` or `sync`, a local marketplace manifest is generated at `~/.uni-plugin/dist/claude-code/.claude-plugin/marketplace.json` listing all translated plugins.
-2. On the first install, that directory is registered as the `uni-plugin-local` marketplace with `claude plugin marketplace add`.
-3. Plugins are installed by name from that marketplace: `claude plugin install <name>@uni-plugin-local`.
-
-You can verify installed plugins at any time:
+## Quick start
 
 ```bash
-claude plugin list
+npm install -g ai-plugin-bridge
+
+# Import a plugin from any supported source
+aib import gemini-cli-extensions/code-review
+
+# See what translated and what didn't
+aib report code-review
+
+# Install to all three tools at once
+aib install code-review
 ```
 
-## CLI reference
+## Using a pluginfile
+
+Define your plugins declaratively in `pluginfile.yaml` and sync them all at once:
+
+```yaml
+# Optional: pre-translated plugin registry (skips clone + translate)
+registry: https://github.com/your-org/ai-plugin-bridge-registry
+
+targets:
+  - claude-code
+  - gemini-cli
+  - copilot-cli
+
+plugins:
+  - name: code-review
+    source: gemini-cli-extensions/code-review
+    ref: main
+
+  - name: ralph-wiggum
+    source: anthropics/claude-code
+    subdir: plugins/ralph-wiggum
+    ref: main
+    targets:           # per-plugin target override
+      - claude-code
+```
+
+```bash
+aib sync              # download, translate, and install everything
+aib sync --dry-run    # preview what would change
+aib sync --init       # generate a pluginfile from your existing imports
+```
+
+## Translation support
+
+| Component    | Portability | Notes                                              |
+|--------------|-------------|----------------------------------------------------|
+| MCP servers  | High        | Protocol-level portable, only manifest differs     |
+| Skills       | High        | SKILL.md format shared across all three tools      |
+| Agents       | Medium      | Semantic translation between Claude ↔ Copilot; converted to skills for Gemini CLI |
+| Commands     | Medium      | Converted to agents for Copilot CLI                |
+| Context      | High        | CLAUDE.md <> GEMINI.md <> .copilot-instructions.md |
+| Hooks        | Low         | Tool-specific; only passed through for native tool |
+
+## Commands
 
 | Command | Description |
 |---------|-------------|
-| `uni import <source>` | Import a plugin from a GitHub repo and translate for all tools |
-| `uni install <name>` | Install a translated plugin into target CLI tools |
-| `uni remove <name>` | Uninstall a plugin from target CLI tools and delete translated files |
-| `uni list` | List all imported plugins |
-| `uni report <name>` | Show translation report for a plugin |
-| `uni sync` | Sync plugins from a pluginfile.yaml |
+| `aib import <repo>` | Import a plugin from a GitHub repo and translate for all tools (falls back to agent import if no plugin manifest is found) |
+| `aib agent import <repo>` | Import standalone agents from a git repo into native tool directories |
+| `aib sync` | Sync plugins defined in pluginfile.yaml |
+| `aib install <name>` | Install a translated plugin into target CLI tools |
+| `aib remove <name>` | Uninstall a plugin and delete translated files |
+| `aib list` | List imported plugins, or plugins available in the registry (`--registry`) |
+| `aib report <name>` | Show per-component translation report |
+| `aib publish [name]` | Publish translated plugins to a local registry repo clone |
+| `aib validate` | Validate pluginfile.yaml and report issues |
+| `aib registry list` | List configured registries and their status |
+| `aib registry add <name> <url>` | Add a registry to global config |
+| `aib registry remove <name>` | Remove a registry from global config |
+| `aib registry update [name]` | Pull latest changes for one or all registries |
+| `aib registry search <query>` | Search plugins across all configured registries |
+| `aib doctor` | Check environment, tool availability, and data directory |
+| `aib clean` | Remove cached source clones (`--all` or `--plugin <name>`) |
+| `aib completions <shell>` | Output shell completion script (bash, zsh, fish) |
 
-### Import options
+Common flags: `--only <tools>` (comma-separated), `--dry-run`, `--ref <ref>`, `--subdir <path>`, `--yes` / `-y`.
 
-- `--ref <ref>` — Git ref to pin (tag, branch, or SHA). Default: `main`
-- `--subdir <path>` — Subdirectory within the repo containing the plugin
-- `--only <tools>` — Comma-separated target tools (e.g. `claude-code,gemini-cli`)
+## Importing standalone agents
 
-### Install options
+Not every repo is a full plugin. Some repos contain just agent definitions — markdown files with YAML frontmatter. ai-plugin-bridge can detect and import these directly into your tools' native agent directories.
 
-- `--only <tools>` — Comma-separated target tools to install to
-- `--dry-run` — Print install commands without executing
+```bash
+# Scan a repo for agents, select which to import interactively
+aib agent import someone/cool-agents
 
-### Remove options
+# Import all agents from a subdirectory, targeting Claude Code only
+aib agent import someone/cool-agents --subdir agents/ --all --to claude-code
 
-- `--only <tools>` — Comma-separated target tools to uninstall from (omit to remove from all)
-- `--dry-run` — Show what would be removed without executing
-
-When `--only` is omitted, the plugin is uninstalled from all three tools and its entry is deleted from the registry. When `--only` targets a subset of tools, the registry entry is kept since the plugin remains partially installed.
-
-### Sync options
-
-- `--file <path>` — Path to pluginfile.yaml
-- `--from-source` — Force clone + translate from source, bypassing registry
-- `--dry-run` — Show what would be installed without executing
-- `--init` — Create a starter pluginfile.yaml in the current directory
-
-## Data directory
-
-Everything lives under `~/.uni-plugin/` (override with `UNI_PLUGIN_HOME`):
-
-```
-~/.uni-plugin/
-├── registry.json           # What you've imported
-├── pluginfile.yaml         # Optional global pluginfile
-├── registry/               # Clone of the remote plugin registry
-├── sources/                # Git clones of source repos
-│   ├── code-review/
-│   └── claude-code/
-└── dist/                   # Translated outputs (real files, no symlinks)
-    ├── claude-code/
-    │   ├── .claude-plugin/
-    │   │   └── marketplace.json  # Local marketplace manifest (auto-generated)
-    │   ├── code-review/
-    │   └── ralph-wiggum/
-    ├── gemini-cli/
-    │   ├── code-review/
-    │   └── ralph-wiggum/
-    └── copilot-cli/
-        ├── code-review/
-        └── ralph-wiggum/
+# Import from a specific branch
+aib agent import someone/cool-agents --ref develop
 ```
 
-## Roadmap
+Agents are installed directly to:
+- **Claude Code:** `~/.claude/agents/` (available globally)
+- **Copilot CLI:** `.github/agents/` in the current project (use `--project` to override)
 
-- [x] Import, translate, and install plugins across all three tools
-- [x] Translation reports with per-component status
-- [x] Monorepo detection and `--subdir` support
-- [x] Declarative sync with `pluginfile.yaml`
-- [x] Registry-first strategy with source fallback
-- [x] Claude Code marketplace integration (`uni-plugin-local`)
-- [x] `uni remove` to uninstall and clean up dist/ and registry entries
-- [ ] Hook translation (Claude Code <> Gemini CLI <> Copilot CLI)
-- [ ] `uni update` to re-translate when upstream changes
-- [ ] `uni publish` to push translated plugins to a registry repo
-- [ ] Web directory for discovery
+### Semantic translation
+
+When importing agents written for a different tool, ai-plugin-bridge translates the frontmatter semantically:
+
+- **Claude → Copilot:** Claude-specific fields (`tools`, `model`, `hooks`, `mcpServers`, etc.) are preserved as YAML comments (`# claude-original-tools: Read, Grep`) so they survive a round-trip back.
+- **Copilot → Claude:** `mcp-servers` is renamed to `mcpServers`. Previously preserved `# claude-original-*` comments are restored to real frontmatter fields.
+- **Ambiguous agents** (only `name` + `description`) pass through unchanged.
+
+The same translation also applies automatically when importing full plugins — agents within plugins are no longer copied verbatim but translated between formats.
+
+### Fallback from plugin import
+
+If `aib import` can't find a plugin manifest in a repo but detects agent files, it offers to import them as standalone agents:
+
+```
+$ aib import someone/agent-collection
+  → No plugin manifest found, but detected 3 agent(s)
+  Import as standalone agents? [y/N]
+```
+
+## Using registries
+
+Registries are git repos of pre-translated plugins. When configured, ai-plugin-bridge copies from the registry instead of cloning and translating from source — faster and reproducible.
+
+### Multiple registries with priority ordering
+
+```yaml
+registries:
+  - name: company
+    url: https://github.com/acme-corp/ai-plugins-registry
+    priority: 1    # checked first
+
+  - name: community
+    url: https://github.com/george/ai-plugin-bridge-registry
+    priority: 2    # fallback
+
+plugins:
+  - name: code-review
+    source: gemini-cli-extensions/code-review
+    ref: main
+    # resolved from highest-priority registry that has it
+
+  - name: acme-standards
+    source: acme-corp/internal-plugins
+    ref: v2.0.0
+    registry: company   # pinned to a specific registry — skips the lookup chain
+```
+
+Resolution order: for each plugin, the priority chain is walked from lowest to highest `priority` value. The first registry that has the plugin wins. If no registry has it, the plugin is cloned and translated from source. Use `--from-source` to bypass all registries.
+
+### Global registry configuration
+
+Registries added via `aib registry add` are stored in `~/.ai-plugin-bridge/config.yaml` and apply to every pluginfile. Pluginfile registries take precedence on name collision.
+
+```bash
+aib registry add company https://github.com/acme-corp/ai-plugins-registry --priority 1
+aib registry add community https://github.com/george/ai-plugin-bridge-registry --priority 2
+aib registry list
+aib registry search code-review
+aib registry update          # pull all registries
+aib registry update company  # pull one registry
+```
+
+Registry clones are stored at `~/.ai-plugin-bridge/registries/{name}/`.
+
+## Private registries
+
+Private registries work with any git authentication method — ai-plugin-bridge relies entirely on git's credential system.
+
+### SSH (recommended for teams)
+
+```yaml
+registries:
+  - name: company
+    url: git@github.com:acme-corp/ai-plugins-registry.git
+    priority: 1
+```
+
+### HTTPS with credential helper
+
+```yaml
+registries:
+  - name: company
+    url: https://github.com/acme-corp/ai-plugins-registry
+    priority: 1
+```
+
+Ensure git credentials are configured: `gh auth login` or `git credential-manager`.
+
+### GitHub token
+
+```bash
+export GIT_ASKPASS=echo
+export GIT_USERNAME=x-access-token
+export GIT_PASSWORD=ghp_your_token_here
+```
+
+Registry entries are pinned to commit SHAs, so you get deterministic installs. Use `--from-source` to bypass all registries and re-translate from the original repo.
+
+## Contributing
+
+See [CONTRIBUTING.md](CONTRIBUTING.md).
+
+## Licence
+
+MIT

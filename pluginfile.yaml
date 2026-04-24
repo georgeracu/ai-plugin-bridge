@@ -1,0 +1,36 @@
+# ai-plugin-bridge — pluginfile.yaml
+# Run `aib sync` to install all plugins listed here.
+
+# GitHub repo containing pre-translated plugins (registry-first strategy)
+# registry: https://github.com/george/ai-plugin-bridge-registry
+
+# Default targets — install to all three CLI tools
+targets:
+  - claude-code
+  - gemini-cli
+  - copilot-cli
+
+plugins:
+  - name: code-review
+    source: gemini-cli-extensions/code-review
+    ref: main
+
+  - name: gemini-cli-jules
+    source: gemini-cli-extensions/jules
+    ref: main
+
+  - name: ralph-wiggum
+    source: anthropics/claude-code
+    subdir: plugins/ralph-wiggum
+    ref: main
+    targets:
+      - claude-code # hooks are Claude Code-specific, skip others
+
+  - name: software-engineering-team
+    source: github/awesome-copilot
+    subdir: plugins/software-engineering-team
+    ref: main
+
+  - name: gemini-cli-stitch
+    source: gemini-cli-extensions/stitch
+    ref: main
